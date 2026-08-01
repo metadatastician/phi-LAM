@@ -49,7 +49,9 @@ The Idris types and total proofs establish that:
 * requests with different identities, `Repeatable` requests, and mixed
   policies are retained;
 * the result contains no pair carrying redundancy evidence;
-* normalization cannot invent or reorder retained actions; and
+* normalization cannot invent or reorder retained actions;
+* every rewrite removes exactly one action and the audit length exactly
+  accounts for all removals;
 * normalization is idempotent; and
 * normalization preserves interpretation for every scheduler model that proves
   its at-most-once operation idempotent.
@@ -59,16 +61,21 @@ pure state transition. Its checked theorem proves that scheduling the same
 `AtMostOnce` identity twice has exactly the effective state of scheduling it
 once. `execute` reports suppressed duplicate attempts as diagnostics kept
 separate from effective semantics; normalization is not claimed to preserve
-those diagnostic lists.
+those diagnostic lists. Reachable scheduler states have unique seen identities,
+and those identities correspond exactly to accepted at-most-once entries in
+the effective schedule. Every action and instrumented execution preserves that
+coherence invariant. Every at-most-once attempt is constructively classified
+as accepted or suppressed, with its transition and diagnostic proved together.
 
 An independent Lean 4 formalization in `formal/lean/` reconstructs the action
 calculus rather than importing generated Idris output. It proves that the Lean
 normalizer produces a normal form, normal forms are fixed points,
-normalization is idempotent, normalization constructs a valid rewrite
-derivation, and every such derivation preserves every lawful scheduler model.
-Shared examples check agreement on the documented rule boundary. This is
-independent theorem-prover corroboration, not a formal compiler-to-compiler
-equivalence theorem.
+normalization is idempotent, every rewrite strictly decreases length, no
+infinite rewrite chain exists, the current rewrite system is confluent, every
+reachable normal form is the unique result returned by `normalize`, and every
+derivation preserves every lawful scheduler model. Shared examples check
+agreement on the documented rule boundary. This is independent theorem-prover
+corroboration, not a formal compiler-to-compiler equivalence theorem.
 
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
@@ -99,7 +106,10 @@ identity, replay policy, and model-parametric scheduler semantics.
 link:docs/decisions/0005-reference-scheduler.adoc[ADR 0005] records the pure
 reference scheduler and the boundary of its guarantees.
 link:docs/decisions/0006-independent-lean-metatheory.adoc[ADR 0006] defines the
-role and limits of the independent Lean formalization. The earlier
+role and limits of the independent Lean formalization.
+link:docs/decisions/0007-proof-frontier.adoc[ADR 0007] records the strengthened
+rewrite and scheduler invariants and identifies the operational proof boundary.
+The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.
 

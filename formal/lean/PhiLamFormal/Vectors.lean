@@ -24,12 +24,6 @@ def boundedSequences : List (List Action) :=
   sequences 0 ++ sequences 1 ++ sequences 2 ++
     sequences 3 ++ sequences 4
 
-def isNormal : List Action → Bool
-  | [] => true
-  | [_] => true
-  | first :: second :: rest =>
-      !redundant first second && isNormal (second :: rest)
-
 example :
     normalize [.readMemory, onceA, onceA, .callSandbox] =
       [.readMemory, onceA, .callSandbox] := by decide
