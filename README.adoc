@@ -6,9 +6,9 @@ typed action sequences.
 
 The repository currently contains one deliberately narrow Idris 2 component:
 an explicit rewrite rule that removes adjacent duplicate `EvaluateLLM` actions
-and returns both the normal form and a derivation trace. That component is the
-whole implemented scope. It is not yet an agent architecture, a runtime, a
-sandbox, an inference engine, or a Kautz-graph implementation.
+and returns both the normal form and a type-aligned derivation. That component
+is the whole implemented scope. It is not yet an agent architecture, a runtime,
+a sandbox, an inference engine, or a Kautz-graph implementation.
 
 == Evidence-backed example
 
@@ -29,6 +29,20 @@ to:
 with a trace identifying the application of `PruneRedundantEvaluation` at
 input position `2` (zero based).
 
+== Checked guarantees
+
+The Idris types and total proofs establish that:
+
+* every derivation step transforms its indexed input into its indexed output;
+* only the second of two adjacent `EvaluateLLM` actions can be removed;
+* the result contains no adjacent duplicate evaluations;
+* normalization cannot invent or reorder retained actions; and
+* normalization is idempotent.
+
+The audit trace is an erased runtime view of the typed derivation. Positions
+refer to the sequence as it exists when each rewrite is applied, not to stale
+positions in the original input.
+
 == Build and test
 
 The currently checked toolchain is Idris 2 0.7.0.
@@ -46,7 +60,9 @@ If `just` is installed, `just check` performs all three steps.
 
 See link:docs/status/STATE.adoc[STATE] for the claim ledger and
 link:docs/decisions/0001-semantic-seed.adoc[ADR 0001] for the deliberately
-small first milestone. The earlier generated scaffold is preserved in Git by
+small first milestone. link:docs/decisions/0003-typed-derivations.adoc[ADR 0003]
+records the move from untyped trace records to indexed evidence. The earlier
+generated scaffold is preserved in Git by
 the annotated tag `forensic/gemini-scaffold-2026-08-01`; it is not a supported
 release.
 

@@ -14,18 +14,28 @@ This ledger distinguishes intentions from evidence. Status terms are:
 |`src/PhiLam/Action.idr` defines the three currently supported actions.
 
 |Adjacent evaluation normalisation
-|tested
-|`src/PhiLam/Normalize.idr` is total; `src/TestNormalize.idr` exercises the
-documented case, fixed points, runs of three, and rule boundaries.
+|verified
+|`src/PhiLam/Normalize.idr` is total and returns a `NormalForm` certificate;
+`normalizedIsNormal` connects that certificate to the executable predicate.
 
 |Derivation trace
-|tested
-|Each removed action produces a named rule application and zero-based input
-position; tests check the exact trace.
+|verified
+|`RewriteEvidence before after` and `Derivation before after` align every
+rewrite by type. `audit` erases that evidence to named dynamic positions.
 
-|Formal proof of idempotence, confluence, or semantic preservation
+|Idempotence
+|verified
+|`normalizeIdempotent` proves that normalizing a result cannot change it.
+
+|Retention order and absence of invented actions
+|verified
+|`normalizationPreservesOrder` constructs `Subsequence output input` for every
+input sequence.
+
+|Confluence or domain-level semantic preservation
 |hypothesis
-|No such proposition or proof exists yet.
+|There is one deterministic rule, but no domain semantics against which to
+state or prove observational preservation.
 
 |Kautz graph topology or “Type 6” semantics
 |hypothesis
@@ -51,6 +61,10 @@ position; tests check the exact trace.
 |hypothesis
 |There is no deployment, release, threat model, or operational evidence.
 |===
+
+The executable suite also exhaustively checks all 364 sequences of length zero
+through five for normality, idempotence, and trace/removal accounting. These
+bounded tests supplement the general proofs; they are not their foundation.
 
 The original generated state is retained by the annotated Git tag
 `forensic/gemini-scaffold-2026-08-01` for audit and comparison.
