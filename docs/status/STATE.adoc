@@ -38,24 +38,43 @@ input sequence.
 |`normalizePreservesSemantics` proves equal interpretation for every
 `SchedulerModel` satisfying its explicit at-most-once idempotence law.
 
+|Pure reference scheduler
+|verified
+|`src/PhiLam/ReferenceScheduler.idr` implements effective scheduling state and
+proves `scheduleAtMostOnceIdempotent` for all request identities and initial
+states.
+
+|Reference scheduler normalization preservation
+|verified
+|`referenceNormalizationPreservesSemantics` specializes the general theorem to
+the executable reference model. The bounded corpus independently checks the
+same agreement.
+
+|Suppression diagnostics
+|tested
+|`execute` separates effective state from `SuppressedDuplicate` diagnostics.
+Tests cover adjacent and non-adjacent duplicate attempts. Diagnostic-list
+preservation under normalization is deliberately not claimed.
+
+|External runtime semantic preservation
+|hypothesis
+|No external queue or service adapter exists. A future adapter must construct a
+lawful model; the reference proof does not assert that an arbitrary scheduler,
+LLM API, retry loop, or persistence layer is idempotent.
+
 |Independent Lean normalizer metatheory
 |verified
 |`formal/lean/PhiLamFormal.lean` reconstructs the calculus in Lean 4 and proves
 normal-form production, fixed points, idempotence, derivation construction,
-and model-parametric semantic preservation. CI also invokes an independent
-Lean environment checker with `sorry` disallowed.
+and model-parametric semantic preservation. CI treats warnings, including
+`sorry`, as failures and runs `leanchecker` over the compiled environment.
 
-|Idris–Lean implementation equivalence
+|Idris–Lean correspondence vectors
 |tested
-|Both implementations check the documented positive and negative vectors.
-There is no extraction pipeline or theorem relating the two source languages,
-so full implementation equivalence is not claimed.
-
-|Concrete runtime semantic preservation
-|hypothesis
-|No runtime interpreter exists. A future adapter must construct a lawful model;
-the abstract theorem does not assert that an arbitrary external scheduler is
-idempotent.
+|Both implementations check the documented positive and negative vectors and
+the same 781-sequence bounded corpus. There is no extraction pipeline or
+theorem relating the two source languages, so full implementation equivalence
+is not claimed.
 
 |Confluence for a multi-rule system
 |hypothesis
@@ -89,10 +108,11 @@ is needed or made.
 
 The executable suite also exhaustively checks all 781 sequences of length zero
 through four over a five-action vocabulary for normality, idempotence,
-trace/removal accounting, and agreement with a concrete lawful test model. It
-also checks negative cases for different request identities, repeatable
-requests, and mixed policies. These bounded tests supplement the general
-proofs; they are not their foundation.
+trace/removal accounting, agreement between original and normalized reference
+execution, and agreement between the execution API and interpreter. Additional
+cases cover distinct identities, repeatable requests, mixed policies,
+non-adjacent suppression, diagnostics, and memory/sandbox counters. These
+bounded tests supplement the general proofs; they are not their foundation.
 
 The original generated state is retained by the annotated Git tag
 `forensic/gemini-scaffold-2026-08-01` for audit and comparison.

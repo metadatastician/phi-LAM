@@ -4,6 +4,7 @@ module TestNormalize
 
 import PhiLam.Action
 import PhiLam.Normalize
+import PhiLam.ReferenceScheduler
 import PhiLam.Semantics
 import System
 
@@ -70,61 +71,15 @@ traceAccountsForRemovals actions =
     result : Normalization actions
     result = normalize actions
 
-record ModelState where
-  constructor MkModelState
-  memoryReads : Nat
-  repeatableEvaluations : Nat
-  sandboxCalls : Nat
-  lastAtMostOnce : Maybe RequestId
-
-Eq ModelState where
-  left == right =
-    memoryReads left == memoryReads right &&
-    repeatableEvaluations left == repeatableEvaluations right &&
-    sandboxCalls left == sandboxCalls right &&
-    lastAtMostOnce left == lastAtMostOnce right
-
-Show ModelState where
-  show state =
-    "ModelState(" ++
-    show (memoryReads state) ++ ", " ++
-    show (repeatableEvaluations state) ++ ", " ++
-    show (sandboxCalls state) ++ ", " ++
-    show (lastAtMostOnce state) ++ ")"
-
-readModel : ModelState -> ModelState
-readModel (MkModelState reads repeats sandboxes last) =
-  MkModelState (S reads) repeats sandboxes last
-
-scheduleModel : RequestId -> ReplayPolicy -> ModelState -> ModelState
-scheduleModel requestId AtMostOnce
-  (MkModelState reads repeats sandboxes _) =
-    MkModelState reads repeats sandboxes (Just requestId)
-scheduleModel _ Repeatable
-  (MkModelState reads repeats sandboxes last) =
-    MkModelState reads (S repeats) sandboxes last
-
-sandboxModel : ModelState -> ModelState
-sandboxModel (MkModelState reads repeats sandboxes last) =
-  MkModelState reads repeats (S sandboxes) last
-
-atMostOnceLaw : (requestId : RequestId) -> (initial : ModelState) ->
-  scheduleModel requestId AtMostOnce
-    (scheduleModel requestId AtMostOnce initial) =
-  scheduleModel requestId AtMostOnce initial
-atMostOnceLaw _ (MkModelState _ _ _ _) = Refl
-
-model : SchedulerModel ModelState
-model = MkSchedulerModel
-  readModel scheduleModel sandboxModel atMostOnceLaw
-
-initialState : ModelState
-initialState = MkModelState 0 0 0 Nothing
-
 runtimeSemanticPreservation : List Action -> Bool
 runtimeSemanticPreservation actions =
-  interpret model actions initialState ==
-  interpret model (normalized (normalize actions)) initialState
+  interpret referenceModel actions emptyState ==
+  interpret referenceModel (normalized (normalize actions)) emptyState
+
+executionInterpreterAgreement : List Action -> Bool
+executionInterpreterAgreement actions =
+  effective (execute actions emptyState) ==
+  interpret referenceModel actions emptyState
 
 ||| The general idempotence theorem specializes to the documented example.
 exampleIdempotenceProof :
@@ -166,8 +121,51 @@ main = do
                             "every trace accounts for every removal"
                             (all traceAccountsForRemovals boundedSequences)
   exhaustiveSemantics <- assertTrue
-                          "the test model agrees on every bounded sequence"
+                          "the reference scheduler preserves all bounded sequences"
                           (all runtimeSemanticPreservation boundedSequences)
+  exhaustiveExecution <- assertTrue
+                          "execution agrees with interpretation on every bounded sequence"
+                          (all executionInterpreterAgreement boundedSequences)
+  adjacentExecution <- assertEqual
+                         "the runtime suppresses an adjacent duplicate"
+                         (MkExecution
+                           (MkSchedulerState
+                             [requestA]
+                             [MkScheduledRequest requestA AtMostOnce]
+                             0 0)
+                           [SuppressedDuplicate requestA])
+                         (execute [onceA, onceA] emptyState)
+  nonAdjacentExecution <- assertEqual
+                            "the runtime suppresses a non-adjacent duplicate"
+                            (MkExecution
+                              (MkSchedulerState
+                                [requestA]
+                                [MkScheduledRequest requestA AtMostOnce]
+                                1 0)
+                              [SuppressedDuplicate requestA])
+                            (execute [onceA, ReadMemory, onceA] emptyState)
+  distinctExecution <- assertEqual
+                         "the runtime schedules distinct identities"
+                         [ MkScheduledRequest requestA AtMostOnce
+                         , MkScheduledRequest requestB AtMostOnce
+                         ]
+                         (effectiveSchedule
+                           (effective (execute [onceA, onceB] emptyState)))
+  repeatableExecution <- assertEqual
+                           "the runtime retains repeatable attempts"
+                           [ MkScheduledRequest requestA Repeatable
+                           , MkScheduledRequest requestA Repeatable
+                           ]
+                           (effectiveSchedule
+                             (effective
+                               (execute [repeatA, repeatA] emptyState)))
+  effectCounters <- assertEqual
+                      "memory and sandbox effects remain observable"
+                      (MkSchedulerState [] [] 2 1)
+                      (effective
+                        (execute
+                          [ReadMemory, CallSandbox, ReadMemory]
+                          emptyState))
   let outcomes =
         [ exampleOutput
         , exampleTrace
@@ -179,7 +177,13 @@ main = do
         , exhaustiveIdempotent
         , exhaustiveAccounting
         , exhaustiveSemantics
+        , exhaustiveExecution
+        , adjacentExecution
+        , nonAdjacentExecution
+        , distinctExecution
+        , repeatableExecution
+        , effectCounters
         ]
   if all id outcomes
-    then putStrLn "All 10 test groups passed."
+    then putStrLn "All 16 test groups passed."
     else exitWith (ExitFailure 1)
