@@ -1,0 +1,7 @@
+name = "PhiLamInference"
+uuid = "9fa259f2-9757-4a07-87ac-45f73c733e87"
+authors = ["phi-LAM contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.12"

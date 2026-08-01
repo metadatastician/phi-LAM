@@ -82,9 +82,10 @@ diagnostic.
 
 |External runtime semantic preservation
 |hypothesis
-|No external queue or service adapter exists. A future adapter must construct a
-lawful model; the reference proof does not assert that an arbitrary scheduler,
-LLM API, retry loop, or persistence layer is idempotent.
+|Queue and adapter behaviours now expose the boundary, but no implementation is
+integrated. A future adapter must construct a lawful model; the reference proof
+does not assert that an arbitrary scheduler, LLM API, retry loop, or persistence
+layer is idempotent.
 
 |Independent Lean normalizer metatheory
 |verified
@@ -126,24 +127,31 @@ to a larger calculus.
 |The terminology is quarantined by ADR 0002 pending a definition.
 
 |Elixir orchestrator
-|hypothesis
-|No orchestrator exists on `main`.
+|tested
+|`orchestrator/` validates request identity, implements the v1 lifecycle, and
+tests atomic duplicate admission plus DETS restart recovery. It has no broker,
+external adapter, distributed ownership, or abrupt-power-loss evidence.
 
 |Zig sandbox
-|hypothesis
-|No sandbox exists on `main`.
+|tested
+|`sandbox/zig/` compiles and tests an exact, deny-by-default capability policy.
+It is not an OS sandbox and does not execute untrusted code.
 
 |Julia inference engine
-|hypothesis
-|No inference engine exists on `main`.
+|tested
+|`inference/julia/` validates finite input and deterministically runs the
+explicit `fixture-mean-v1` model. There is no learned model or quality claim.
 
 |Multi-language integration
-|hypothesis
-|There are no language boundaries or integration tests.
+|specified
+|`contracts/v1/` defines common wire shapes and fixtures. Current checks cover
+syntax and component behavior, not generated bindings, full schema validation,
+or an end-to-end cross-process exchange.
 
 |Production readiness
 |hypothesis
-|There is no deployment, release, threat model, or operational evidence.
+|A threat model and gated completion plan now exist, but there is no deployment,
+release, OS containment, real inference model, or operational evidence.
 |===
 
 The executable suite also exhaustively checks all 781 sequences of length zero

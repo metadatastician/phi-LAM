@@ -1,0 +1,8 @@
+= Julia inference boundary
+
+This package validates a numerical request and returns a deterministic result
+using an explicitly labelled fixture model. It establishes the package and
+test boundary without pretending that a statistical model, calibration data,
+model registry, or production serving path exists.
+
+Run `julia --project=. --startup-file=no test/runtests.jl`.
