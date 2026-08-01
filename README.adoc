@@ -4,14 +4,22 @@
 phi-LAM is a pre-alpha research seed for describing and normalising small,
 typed action sequences.
 
-The repository currently contains a deliberately narrow Idris 2 semantic
-kernel and pure reference scheduler. The normalizer removes adjacent scheduler
+The repository contains a deliberately narrow Idris 2 semantic kernel and pure
+reference scheduler, plus executable engineering scaffolds around its current
+operational boundary. The normalizer removes adjacent scheduler
 entries only when they carry the same request identity and the `AtMostOnce`
 policy, returning both the normal form and a type-aligned derivation. The
 reference scheduler gives that policy executable meaning: the first request
 changes effective state and later attempts with the same identity are
-suppressed. This is not yet an agent architecture, an external scheduler
-adapter, a sandbox, an inference engine, or a Kautz-graph implementation.
+suppressed.
+
+The engineering scaffold adds a versioned JSON protocol, an Elixir lifecycle
+and atomic/recoverable local store, queue and external-adapter ports, a Zig
+deny-by-default capability evaluator, and a Julia deterministic inference
+fixture. These are tested seams, not a production service: no broker or real
+provider is integrated, the Zig policy does not yet impose OS containment, and
+the Julia fixture is not a trained model. Kautz-graph and “Type 6” claims remain
+quarantined.
 
 == Evidence-backed example
 
@@ -106,9 +114,14 @@ idris2 --build phi-lam.ipkg
 idris2 --source-dir src -o phi-lam-tests src/TestNormalize.idr
 ./build/exec/phi-lam-tests
 cd formal/lean && lake build
+cd orchestrator && mix test
+cd sandbox/zig && zig build test
+cd inference/julia && julia --project=. --startup-file=no test/runtests.jl
 ----
 
-If `just` is installed, `just check` performs all three steps.
+If `just` is installed, `just check` performs the proof-kernel and engineering
+checks. `just engineering-check` runs only the protocol, Elixir, Zig, and Julia
+surfaces.
 
 == Repository status
 
@@ -126,6 +139,11 @@ link:docs/decisions/0007-proof-frontier.adoc[ADR 0007] records the strengthened
 rewrite and scheduler invariants and identifies the operational proof boundary.
 link:docs/decisions/0008-proof-corollaries.adoc[ADR 0008] records exact effect
 accounting and streaming/batch equivalence.
+link:docs/decisions/0009-operational-boundaries.adoc[ADR 0009] defines the new
+engineering seams and their claim limits. The dependency-ordered
+link:docs/engineering/COMPLETION-PLAN.adoc[completion plan] and
+link:docs/security/THREAT-MODEL.adoc[threat model] specify what is required to
+deepen them.
 The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.

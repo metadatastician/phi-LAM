@@ -1,0 +1,40 @@
+= ADR 0009: Establish executable operational boundaries
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The verified scheduler is pure. It proves properties of action sequences and a
+reference state transition, but says nothing by itself about concurrent
+admission, durable recovery, queue acknowledgement, external effects, process
+containment, or statistical inference. The quarantined generated scaffold
+named these components without implementing their contracts.
+
+== Decision
+
+Introduce a versioned, language-neutral protocol and four deliberately narrow
+engineering surfaces:
+
+* an Elixir lifecycle and serialized DETS store with atomic duplicate
+  admission and restart tests;
+* queue and external-adapter behaviours that make pre-effect rejection and
+  post-effect ambiguity distinct outcomes;
+* a Zig deny-by-default capability policy evaluator, explicitly not described
+  as containment; and
+* a Julia deterministic fixture model with validated finite numeric input.
+
+The external string `request_id` and Idris natural-number `core_id` are both
+carried at the boundary. A production allocator must establish an injective,
+durable mapping before external at-most-once claims can inherit the core
+theorem. Queue acknowledgement must follow durable state change. An ambiguous
+external result is terminal for automation and requires reconciliation; it is
+never silently treated as a retryable failure.
+
+== Consequences
+
+The repository now has executable seams on which deeper engineering can be
+built without overstating integration. DETS is an evidence-producing local
+prototype, not a multi-node transactional store. Policy evaluation is not an
+OS sandbox. The fixture mean is not an inference model. Cross-language binding
+generation, fault-injected end-to-end tests, and operational deployment remain
+explicit completion gates.

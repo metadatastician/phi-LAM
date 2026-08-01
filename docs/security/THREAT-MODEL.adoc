@@ -1,0 +1,55 @@
+= Engineering threat model
+:date: 2026-08-01
+
+== Scope and assets
+
+The protected assets are request identity and lifecycle integrity, effect
+receipts, queue-delivery ownership, persisted payloads, adapter credentials,
+host filesystem and network authority, inference inputs and outputs, and the
+audit trail connecting all of them. The Idris and Lean proofs are trusted only
+for their stated pure models; operational code is outside that trust boundary.
+
+== Trust boundaries and principal threats
+
+[cols="2,3,3",options="header"]
+|===
+|Boundary |Threat |Required control/evidence
+
+|Client to orchestrator
+|Identity collision, malformed payload, replay storm
+|Schema validation, authenticated origin, quotas, atomic external-ID/core-ID
+mapping, concurrent replay tests
+
+|Orchestrator to persistent store
+|Torn state, lost acceptance, split ownership, stale replay
+|Transactional compare-and-set, durable commit before acknowledgement,
+fencing/leases, crash and corruption tests
+
+|Queue to worker
+|Duplicate/redelivered messages, acknowledgement before commit, poison item
+|Delivery IDs, bounded retry policy, dead-lettering, acknowledgement ordering,
+broker integration tests
+
+|Worker to external adapter
+|Provider commits an effect but response is lost; key is ignored or expires
+|Stable idempotency key, receipt ledger, explicit ambiguous state, provider
+reconciliation, no automatic retry after ambiguity
+
+|Orchestrator to Zig launcher
+|Policy bypass, confused deputy, parser differential, sandbox escape
+|Fail-closed typed request, separate low-privilege process, OS-enforced
+filesystem/network/syscall limits, hostile corpus and escape testing
+
+|Orchestrator to Julia inference
+|NaN/Inf, oversized input, model substitution, nondeterminism, data leakage
+|Shape/range limits, model digest and registry, resource limits, deterministic
+fixtures, privacy policy and calibrated-model evaluation
+|===
+
+== Current security claim
+
+The Zig code proves only an executable policy decision for four exact
+capabilities. It does not enforce that decision on a process. DETS serializes
+calls in one BEAM node and syncs snapshots, but no claim is made for abrupt
+power loss, malicious file modification, or distributed ownership. No secrets,
+untrusted payloads, or real external calls should be admitted by this scaffold.

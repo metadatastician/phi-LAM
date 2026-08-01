@@ -1,0 +1,16 @@
+{
+  "protocol_version": 1,
+  "initial_state": "unseen",
+  "terminal_states": ["completed", "failed_before_commit", "ambiguous_after_effect"],
+  "transitions": [
+    ["unseen", "accepted", "accepted"],
+    ["accepted", "started", "started"],
+    ["started", "effect_committed", "effect_committed"],
+    ["effect_committed", "completed", "completed"],
+    ["accepted", "failed_before_commit", "failed_before_commit"],
+    ["started", "failed_before_commit", "failed_before_commit"],
+    ["started", "ambiguous_after_effect", "ambiguous_after_effect"],
+    ["effect_committed", "ambiguous_after_effect", "ambiguous_after_effect"],
+    ["failed_before_commit", "retry_requested", "accepted"]
+  ]
+}
