@@ -1,0 +1,46 @@
+= ADR 0003: Index derivations by their input and output
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The first semantic seed returned a list of rule names and numeric positions.
+That representation was useful as an audit log but did not prove that a logged
+step was applicable or that the sequence of steps connected the supplied input
+to the returned output.
+
+It also exposed an ambiguity for repeated rewrites. In a run of three adjacent
+evaluations, the old audit reported positions `1` and `2` from the original
+input. The second rewrite actually occurs at position `1` in the intermediate
+sequence.
+
+== Decision
+
+Represent a single rewrite as `RewriteEvidence before after` and a sequence as
+`Derivation before after`. The sole evidence constructor contains the leading
+context and suffix, and its indices state exactly that it removes the second of
+two adjacent evaluations.
+
+Each `Normalization input` now contains:
+
+* its output sequence;
+* a `Derivation input output`; and
+* a `NormalForm output` certificate.
+
+The human-readable `audit` trace is derived from this evidence and uses dynamic
+positions. It is no longer the source of truth.
+
+The same change establishes general total proofs that normalization produces a
+normal form, is idempotent, and returns an order-preserving subsequence of its
+input.
+
+== Consequences
+
+Invalid derivations cannot be represented through the public constructors.
+The normalizer cannot claim an unrelated output without also constructing the
+corresponding evidence. Consumers that only need diagnostics can use `audit`;
+proof-aware consumers can retain the indexed derivation.
+
+This does not prove domain-level semantic preservation. phi-LAM still lacks a
+definition of observable program meaning, so that stronger claim would be
+premature.
