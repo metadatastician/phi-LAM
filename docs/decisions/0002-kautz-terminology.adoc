@@ -1,0 +1,23 @@
+= ADR 0002: Quarantine the “Kautz Type 6” label
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The discarded scaffold used the phrase “Kautz Type 6” without a mathematical
+definition, source, representation, invariant, or executable construction.
+That phrase therefore cannot presently identify an implemented property.
+
+== Decision
+
+phi-LAM makes no Kautz-graph claim. The phrase may re-enter project vocabulary
+only through a later decision record that supplies, at minimum:
+
+* a precise definition and notation;
+* the relationship to established Kautz graph terminology;
+* the role of the structure in phi-LAM semantics;
+* machine-checkable invariants and counterexamples; and
+* tests or proofs tied to the implementation.
+
+Until then, “Kautz Type 6” is an unresolved research note, not a component,
+feature, or architectural fact.
