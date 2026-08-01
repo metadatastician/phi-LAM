@@ -1,0 +1,5 @@
+[tools]
+elixir = "latest"
+erlang = "latest"
+zig = "latest"
+julia = "latest"
