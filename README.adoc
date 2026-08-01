@@ -66,6 +66,15 @@ and those identities correspond exactly to accepted at-most-once entries in
 the effective schedule. Every action and instrumented execution preserves that
 coherence invariant. Every at-most-once attempt is constructively classified
 as accepted or suppressed, with its transition and diagnostic proved together.
+Reference interpretation also proves exact effect accounting: memory and
+sandbox counters equal their initial values plus the corresponding action
+counts, while every at-most-once attempt is conserved as either a newly seen
+identity or a suppression diagnostic.
+
+Diagnostics are intentionally not invariant under normalization, but their
+change is now exact: each recorded rewrite removes exactly one suppression
+diagnostic from reference execution. Thus the raw diagnostic count equals the
+normalization audit length plus the normalized execution's diagnostic count.
 
 An independent Lean 4 formalization in `formal/lean/` reconstructs the action
 calculus rather than importing generated Idris output. It proves that the Lean
@@ -76,6 +85,12 @@ reachable normal form is the unique result returned by `normalize`, and every
 derivation preserves every lawful scheduler model. Shared examples check
 agreement on the documented rule boundary. This is independent theorem-prover
 corroboration, not a formal compiler-to-compiler equivalence theorem.
+
+The Lean development also defines a minimal streaming normalizer with one
+pending action of look-behind. Processing concatenated chunks equals processing
+the first chunk and resuming with its state, and finishing a streaming run is
+proved equal to batch `normalize`. This includes redundant pairs split across a
+chunk boundary; it is a pure normalization result, not a persistence protocol.
 
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
@@ -109,6 +124,8 @@ link:docs/decisions/0006-independent-lean-metatheory.adoc[ADR 0006] defines the
 role and limits of the independent Lean formalization.
 link:docs/decisions/0007-proof-frontier.adoc[ADR 0007] records the strengthened
 rewrite and scheduler invariants and identifies the operational proof boundary.
+link:docs/decisions/0008-proof-corollaries.adoc[ADR 0008] records exact effect
+accounting and streaming/batch equivalence.
 The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.

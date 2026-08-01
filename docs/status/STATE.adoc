@@ -53,6 +53,18 @@ exactly the at-most-once acceptance order in the effective schedule. Every
 action preserves this invariant, so every execution from `emptyState` is
 coherent.
 
+|Reference effect counters
+|verified
+|`interpretMemoryReadsExactly` and `interpretSandboxCallsExactly` prove that
+only the corresponding actions increment each counter and that the final value
+is exactly the initial value plus the symbolic action count.
+
+|Attempt conservation
+|verified
+|`atMostOnceAttemptAccounting` proves that every at-most-once attempt contributes
+exactly one unit to either seen-set growth or suppression diagnostics, from any
+initial scheduler state.
+
 |Reference scheduler normalization preservation
 |verified
 |`referenceNormalizationPreservesSemantics` specializes the general theorem to
@@ -64,7 +76,9 @@ same agreement.
 |`AtMostOnceDecision` constructively classifies every attempt as accepted or
 suppressed and carries proofs of the membership condition, effective
 transition, and exact diagnostic. Diagnostic-list preservation under
-normalization is deliberately not claimed.
+normalization is deliberately not claimed; `normalizationDiagnosticAccounting`
+instead proves that each recorded rewrite removes exactly one suppression
+diagnostic.
 
 |External runtime semantic preservation
 |hypothesis
@@ -93,6 +107,13 @@ is not claimed.
 |Every derivation preserves `normalize`; any two results reachable from one
 input therefore join at its normalized form, and reachable normal forms are
 unique.
+
+|Streaming normalization
+|verified
+|Lean's `streamChunk_append`, `streamNormalize_chunked`, and
+`streamNormalize_eq_normalize` prove resumable chunk processing and batch
+normalization agree, using one pending action to handle a redundant pair split
+across a boundary.
 
 |Confluence after adding more rules
 |hypothesis
@@ -129,8 +150,10 @@ The executable suite also exhaustively checks all 781 sequences of length zero
 through four over a five-action vocabulary for normality, idempotence,
 trace/removal accounting, agreement between original and normalized reference
 execution, agreement between the execution API and interpreter, and scheduler
-coherence. Additional cases cover distinct identities, repeatable requests,
-mixed policies, non-adjacent suppression, diagnostics, and memory/sandbox
+coherence. The same corpus also checks exact effect counters, attempt
+conservation, and Lean streaming/batch agreement. Additional cases cover
+distinct identities, repeatable requests, mixed policies, non-adjacent
+suppression, diagnostics, chunk-boundary suppression, and memory/sandbox
 counters. These bounded tests supplement the general proofs; they are not their
 foundation.
 
