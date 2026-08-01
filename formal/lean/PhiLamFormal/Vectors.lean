@@ -44,4 +44,14 @@ example :
       (fun actions => normalize (normalize actions) == normalize actions) = true :=
   by native_decide
 
+example :
+    boundedSequences.all
+      (fun actions => streamNormalize actions == normalize actions) = true :=
+  by native_decide
+
+example :
+    finishStream
+      (streamChunk (streamChunk emptyStream [onceA]) [onceA]) = [onceA] :=
+  by decide
+
 end PhiLam.Vectors

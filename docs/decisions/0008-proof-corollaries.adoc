@@ -1,0 +1,52 @@
+= ADR 0008: Prove effect accounting and streaming equivalence
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+ADR 0007 established the central pre-runtime proof frontier. Several useful
+corollaries remained available without choosing a queue, database, process
+model, or external adapter: exact accounting of the reference scheduler's
+observable counters, conservation of at-most-once attempts, and equivalence
+between batch normalization and chunked processing.
+
+== Decision
+
+Count memory reads, sandbox calls, and at-most-once scheduling attempts directly
+from the symbolic action sequence. Prove that reference interpretation produces
+exactly the initial memory and sandbox counters plus their respective action
+counts. Scheduling transitions under both replay policies preserve both
+counters.
+
+Prove the conservation law:
+
+[source]
+----
+final seen-set size + suppression count
+  = initial seen-set size + at-most-once attempt count
+----
+
+This theorem holds from every initial scheduler state. It follows from the
+constructive accepted/suppressed classification: acceptance grows the seen set
+by one and emits no diagnostic; suppression preserves effective state and emits
+one diagnostic.
+
+In Lean, define a pure streaming normalizer state containing a finalized output
+prefix and at most one pending action. Prove:
+
+* processing `left ++ right` equals processing `left` and resuming with `right`;
+* finishing a streaming run equals the existing batch normalizer; and
+* therefore a redundant pair crossing a chunk boundary is treated identically
+  to the same pair in a single batch.
+
+== Consequences
+
+Counter values and suppression totals are no longer merely observed in tests,
+and a future incremental consumer can use the formal streaming state rather
+than inventing a boundary rule. The 781-sequence corpus remains a regression
+check for all three results.
+
+The streaming state is not a durable checkpoint format. The proofs assume a
+state value is resumed exactly; they do not cover serialization, corruption,
+crashes, concurrent ownership, delivery, or replay after external effects.
+Those properties still require an operational design.

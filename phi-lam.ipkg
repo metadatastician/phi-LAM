@@ -1,6 +1,6 @@
 package phi-lam
 
-version = 0.4.0
+version = 0.5.0
 authors = "Jonathan D.A. Jewell"
 brief = "A minimal typed action-sequence normaliser"
 license = "MPL-2.0"

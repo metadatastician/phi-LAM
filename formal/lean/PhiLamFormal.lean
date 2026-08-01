@@ -40,6 +40,75 @@ def normalize : List Action → List Action
   | [] => []
   | first :: rest => first :: normalizeTail first rest
 
+structure StreamState where
+  emitted : List Action
+  pending : Option Action
+  deriving DecidableEq, Repr
+
+def emptyStream : StreamState := ⟨[], none⟩
+
+def streamStep : StreamState → Action → StreamState
+  | ⟨emitted, none⟩, action => ⟨emitted, some action⟩
+  | state@⟨emitted, some previous⟩, action =>
+      if redundant previous action
+        then state
+        else ⟨emitted ++ [previous], some action⟩
+
+def streamChunk : StreamState → List Action → StreamState
+  | state, [] => state
+  | state, action :: rest => streamChunk (streamStep state action) rest
+
+def finishStream : StreamState → List Action
+  | ⟨emitted, none⟩ => emitted
+  | ⟨emitted, some pending⟩ => emitted ++ [pending]
+
+def streamNormalize (actions : List Action) : List Action :=
+  finishStream (streamChunk emptyStream actions)
+
+theorem streamChunk_append (state : StreamState)
+    (left right : List Action) :
+    streamChunk state (left ++ right) =
+    streamChunk (streamChunk state left) right := by
+  induction left generalizing state with
+  | nil => rfl
+  | cons action rest inductionHypothesis =>
+      simp only [List.cons_append, streamChunk]
+      exact inductionHypothesis (streamStep state action)
+
+theorem finishStream_pending (emitted : List Action) (previous : Action)
+    (rest : List Action) :
+    finishStream (streamChunk ⟨emitted, some previous⟩ rest) =
+    emitted ++ previous :: normalizeTail previous rest := by
+  induction rest generalizing emitted previous with
+  | nil => simp [streamChunk, finishStream, normalizeTail]
+  | cons action rest inductionHypothesis =>
+      by_cases pair : redundant previous action = true
+      · simp [streamChunk, streamStep, pair, normalizeTail,
+          inductionHypothesis emitted previous]
+      · have pairFalse : redundant previous action = false := by
+          cases value : redundant previous action <;> simp_all
+        simp [streamChunk, streamStep, pairFalse, normalizeTail,
+          inductionHypothesis (emitted ++ [previous]) action,
+          List.append_assoc]
+
+theorem finishStream_none (emitted : List Action) (actions : List Action) :
+    finishStream (streamChunk ⟨emitted, none⟩ actions) =
+    emitted ++ normalize actions := by
+  cases actions with
+  | nil => simp [streamChunk, finishStream, normalize]
+  | cons first rest =>
+      simpa [streamChunk, streamStep, normalize] using
+        finishStream_pending emitted first rest
+
+theorem streamNormalize_eq_normalize (actions : List Action) :
+    streamNormalize actions = normalize actions := by
+  simpa [streamNormalize, emptyStream] using finishStream_none [] actions
+
+theorem streamNormalize_chunked (left right : List Action) :
+    streamNormalize (left ++ right) =
+    finishStream (streamChunk (streamChunk emptyStream left) right) := by
+  simp [streamNormalize, streamChunk_append]
+
 def isNormal : List Action → Bool
   | [] => true
   | [_] => true

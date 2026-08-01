@@ -85,6 +85,18 @@ executionStateIsWellFormed : List Action -> Bool
 executionStateIsWellFormed actions =
   isWellFormed (effective (execute actions emptyState))
 
+executionCountersAreExact : List Action -> Bool
+executionCountersAreExact actions =
+  let final = effective (execute actions emptyState)
+   in memoryReads final == countMemoryReads actions &&
+      sandboxCalls final == countSandboxCalls actions
+
+attemptsAreAccountedFor : List Action -> Bool
+attemptsAreAccountedFor actions =
+  let result = execute actions emptyState
+   in length (seenAtMostOnce (effective result)) +
+        length (diagnostics result) == countAtMostOnceAttempts actions
+
 ||| The general idempotence theorem specializes to the documented example.
 exampleIdempotenceProof :
   normalized (normalize (normalized (normalize exampleInput))) =
@@ -133,6 +145,12 @@ main = do
   exhaustiveWellFormed <- assertTrue
                             "all bounded executions preserve scheduler coherence"
                             (all executionStateIsWellFormed boundedSequences)
+  exhaustiveCounters <- assertTrue
+                          "all bounded executions have exact effect counters"
+                          (all executionCountersAreExact boundedSequences)
+  exhaustiveAttempts <- assertTrue
+                          "all bounded attempts are accepted or suppressed"
+                          (all attemptsAreAccountedFor boundedSequences)
   adjacentExecution <- assertEqual
                          "the runtime suppresses an adjacent duplicate"
                          (MkExecution
@@ -186,6 +204,8 @@ main = do
         , exhaustiveSemantics
         , exhaustiveExecution
         , exhaustiveWellFormed
+        , exhaustiveCounters
+        , exhaustiveAttempts
         , adjacentExecution
         , nonAdjacentExecution
         , distinctExecution
@@ -193,5 +213,5 @@ main = do
         , effectCounters
         ]
   if all id outcomes
-    then putStrLn "All 17 test groups passed."
+    then putStrLn "All 19 test groups passed."
     else exitWith (ExitFailure 1)

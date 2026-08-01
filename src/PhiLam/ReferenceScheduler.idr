@@ -412,6 +412,123 @@ interpretPreservesWellFormed (action :: rest) initial coherent =
     (applyAction PhiLam.ReferenceScheduler.referenceModel action initial)
     (applyActionPreservesWellFormed action initial coherent)
 
+plusSuccRight : (left : Nat) -> (right : Nat) ->
+  left + S right = S (left + right)
+plusSuccRight Z right = Refl
+plusSuccRight (S left) right = cong S (plusSuccRight left right)
+
+||| Number of memory-read actions in a symbolic sequence.
+public export
+countMemoryReads : List Action -> Nat
+countMemoryReads [] = 0
+countMemoryReads (ReadMemory :: rest) = S (countMemoryReads rest)
+countMemoryReads (_ :: rest) = countMemoryReads rest
+
+||| Number of sandbox-call actions in a symbolic sequence.
+public export
+countSandboxCalls : List Action -> Nat
+countSandboxCalls [] = 0
+countSandboxCalls (CallSandbox :: rest) = S (countSandboxCalls rest)
+countSandboxCalls (_ :: rest) = countSandboxCalls rest
+
+||| Number of at-most-once scheduling attempts in a symbolic sequence.
+public export
+countAtMostOnceAttempts : List Action -> Nat
+countAtMostOnceAttempts [] = 0
+countAtMostOnceAttempts
+  (ScheduleEvaluation _ AtMostOnce :: rest) =
+    S (countAtMostOnceAttempts rest)
+countAtMostOnceAttempts (_ :: rest) = countAtMostOnceAttempts rest
+
+schedulePreservesCountersByDecision :
+  (requestId : RequestId) -> (policy : ReplayPolicy) ->
+  (seen : List RequestId) ->
+  (effective : List ScheduledRequest) ->
+  (reads : Nat) -> (sandboxes : Nat) ->
+  (decision : Bool) ->
+  containsRequest requestId seen = decision ->
+  ( memoryReads
+      (schedule requestId policy
+        (MkSchedulerState seen effective reads sandboxes)) = reads
+  , sandboxCalls
+      (schedule requestId policy
+        (MkSchedulerState seen effective reads sandboxes)) = sandboxes
+  )
+schedulePreservesCountersByDecision requestId AtMostOnce
+  seen effective reads sandboxes True alreadySeen =
+    rewrite alreadySeen in (Refl, Refl)
+schedulePreservesCountersByDecision requestId AtMostOnce
+  seen effective reads sandboxes False notSeen =
+    rewrite notSeen in (Refl, Refl)
+schedulePreservesCountersByDecision requestId Repeatable
+  seen effective reads sandboxes decision _ = (Refl, Refl)
+
+schedulePreservesCounters :
+  (requestId : RequestId) -> (policy : ReplayPolicy) ->
+  (initial : SchedulerState) ->
+  ( memoryReads (schedule requestId policy initial) = memoryReads initial
+  , sandboxCalls (schedule requestId policy initial) = sandboxCalls initial
+  )
+schedulePreservesCounters requestId policy
+  (MkSchedulerState seen effective reads sandboxes) =
+    schedulePreservesCountersByDecision
+      requestId policy seen effective reads sandboxes
+      (containsRequest requestId seen) Refl
+
+||| Reference interpretation changes the memory counter by exactly the number
+||| of memory-read actions and by nothing else.
+public export
+interpretMemoryReadsExactly :
+  (actions : List Action) -> (initial : SchedulerState) ->
+  memoryReads
+    (interpret PhiLam.ReferenceScheduler.referenceModel actions initial) =
+  countMemoryReads actions + memoryReads initial
+interpretMemoryReadsExactly [] initial = Refl
+interpretMemoryReadsExactly (ReadMemory :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    trans
+      (interpretMemoryReadsExactly rest
+        (MkSchedulerState seen effective (S reads) sandboxes))
+      (plusSuccRight (countMemoryReads rest) reads)
+interpretMemoryReadsExactly
+  (ScheduleEvaluation requestId policy :: rest) initial =
+    trans
+      (interpretMemoryReadsExactly rest
+        (schedule requestId policy initial))
+      (cong (countMemoryReads rest +)
+        (fst (schedulePreservesCounters requestId policy initial)))
+interpretMemoryReadsExactly (CallSandbox :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    interpretMemoryReadsExactly rest
+      (MkSchedulerState seen effective reads (S sandboxes))
+
+||| Reference interpretation changes the sandbox counter by exactly the number
+||| of sandbox-call actions and by nothing else.
+public export
+interpretSandboxCallsExactly :
+  (actions : List Action) -> (initial : SchedulerState) ->
+  sandboxCalls
+    (interpret PhiLam.ReferenceScheduler.referenceModel actions initial) =
+  countSandboxCalls actions + sandboxCalls initial
+interpretSandboxCallsExactly [] initial = Refl
+interpretSandboxCallsExactly (ReadMemory :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    interpretSandboxCallsExactly rest
+      (MkSchedulerState seen effective (S reads) sandboxes)
+interpretSandboxCallsExactly
+  (ScheduleEvaluation requestId policy :: rest) initial =
+    trans
+      (interpretSandboxCallsExactly rest
+        (schedule requestId policy initial))
+      (cong (countSandboxCalls rest +)
+        (snd (schedulePreservesCounters requestId policy initial)))
+interpretSandboxCallsExactly (CallSandbox :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    trans
+      (interpretSandboxCallsExactly rest
+        (MkSchedulerState seen effective reads (S sandboxes)))
+      (plusSuccRight (countSandboxCalls rest) sandboxes)
+
 ||| Concrete specialization of the model-parametric preservation theorem.
 public export
 referenceNormalizationPreservesSemantics :
@@ -565,6 +682,69 @@ execute actions initial =
   MkExecution
     (interpret referenceModel actions initial)
     (collectDiagnostics actions initial)
+
+||| Every at-most-once attempt is accounted for exactly once: it either adds
+||| one identity to the seen set or emits one suppression diagnostic.
+public export
+atMostOnceAttemptAccounting :
+  (actions : List Action) -> (initial : SchedulerState) ->
+  length (seenAtMostOnce (effective (execute actions initial))) +
+    length (diagnostics (execute actions initial)) =
+  length (seenAtMostOnce initial) + countAtMostOnceAttempts actions
+atMostOnceAttemptAccounting [] initial = Refl
+atMostOnceAttemptAccounting (ReadMemory :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    atMostOnceAttemptAccounting rest
+      (MkSchedulerState seen effective (S reads) sandboxes)
+atMostOnceAttemptAccounting
+  (ScheduleEvaluation attemptId Repeatable :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    atMostOnceAttemptAccounting rest
+      (MkSchedulerState
+        seen
+        (effective ++ [MkScheduledRequest attemptId Repeatable])
+        reads sandboxes)
+atMostOnceAttemptAccounting
+  (ScheduleEvaluation attemptId AtMostOnce :: rest)
+  (MkSchedulerState seen effective reads sandboxes) with
+    (classifyAtMostOnce attemptId
+      (MkSchedulerState seen effective reads sandboxes))
+  atMostOnceAttemptAccounting
+    (ScheduleEvaluation attemptId AtMostOnce :: rest)
+    (MkSchedulerState seen effective reads sandboxes) |
+      AcceptedAttempt notSeen transition noDiagnostic =
+        rewrite transition in
+        rewrite noDiagnostic in
+        trans
+          (atMostOnceAttemptAccounting rest
+            (acceptedState attemptId
+              (MkSchedulerState seen effective reads sandboxes)))
+          (sym (plusSuccRight (length seen)
+            (countAtMostOnceAttempts rest)))
+  atMostOnceAttemptAccounting
+    (ScheduleEvaluation attemptId AtMostOnce :: rest)
+    (MkSchedulerState seen effective reads sandboxes) |
+      SuppressedAttempt alreadySeen transition suppressionDiagnostic =
+        rewrite transition in
+        rewrite suppressionDiagnostic in
+        let inductionResult = atMostOnceAttemptAccounting rest
+              (MkSchedulerState seen effective reads sandboxes)
+         in trans
+              (plusSuccRight
+                (length (seenAtMostOnce
+                  (interpret PhiLam.ReferenceScheduler.referenceModel rest
+                    (MkSchedulerState seen effective reads sandboxes))))
+                (length (collectDiagnostics rest
+                  (MkSchedulerState seen effective reads sandboxes))))
+              (trans
+                (cong S inductionResult)
+                (sym (plusSuccRight
+                  (length seen)
+                  (countAtMostOnceAttempts rest))))
+atMostOnceAttemptAccounting (CallSandbox :: rest)
+  (MkSchedulerState seen effective reads sandboxes) =
+    atMostOnceAttemptAccounting rest
+      (MkSchedulerState seen effective reads (S sandboxes))
 
 ||| The execution API and abstract interpreter share exactly one effective path.
 public export
