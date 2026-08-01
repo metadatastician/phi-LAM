@@ -71,6 +71,11 @@ sandbox counters equal their initial values plus the corresponding action
 counts, while every at-most-once attempt is conserved as either a newly seen
 identity or a suppression diagnostic.
 
+Diagnostics are intentionally not invariant under normalization, but their
+change is now exact: each recorded rewrite removes exactly one suppression
+diagnostic from reference execution. Thus the raw diagnostic count equals the
+normalization audit length plus the normalized execution's diagnostic count.
+
 An independent Lean 4 formalization in `formal/lean/` reconstructs the action
 calculus rather than importing generated Idris output. It proves that the Lean
 normalizer produces a normal form, normal forms are fixed points,

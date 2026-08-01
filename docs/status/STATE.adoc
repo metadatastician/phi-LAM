@@ -76,7 +76,9 @@ same agreement.
 |`AtMostOnceDecision` constructively classifies every attempt as accepted or
 suppressed and carries proofs of the membership condition, effective
 transition, and exact diagnostic. Diagnostic-list preservation under
-normalization is deliberately not claimed.
+normalization is deliberately not claimed; `normalizationDiagnosticAccounting`
+instead proves that each recorded rewrite removes exactly one suppression
+diagnostic.
 
 |External runtime semantic preservation
 |hypothesis

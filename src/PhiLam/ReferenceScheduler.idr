@@ -241,6 +241,48 @@ scheduleRepeatable :
     reads sandboxes
 scheduleRepeatable requestId seen effective reads sandboxes = Refl
 
+containsAfterAtMostOnceScheduleByDecision :
+  (requestId : RequestId) ->
+  (seen : List RequestId) ->
+  (effective : List ScheduledRequest) ->
+  (reads : Nat) -> (sandboxes : Nat) ->
+  (decision : Bool) ->
+  containsRequest requestId seen = decision ->
+  containsRequest requestId
+    (seenAtMostOnce
+      (schedule requestId AtMostOnce
+        (MkSchedulerState seen effective reads sandboxes))) = True
+containsAfterAtMostOnceScheduleByDecision requestId seen effective
+  reads sandboxes True alreadySeen =
+    let transition = scheduleWhenSeen
+          requestId seen effective reads sandboxes alreadySeen
+     in replace
+          {p = \state =>
+            containsRequest requestId (seenAtMostOnce state) = True}
+          (sym transition)
+          alreadySeen
+containsAfterAtMostOnceScheduleByDecision requestId seen effective
+  reads sandboxes False notSeen =
+    let transition = scheduleWhenUnseen
+          requestId seen effective reads sandboxes notSeen
+     in replace
+          {p = \state =>
+            containsRequest requestId (seenAtMostOnce state) = True}
+          (sym transition)
+          (containsInserted requestId seen)
+
+||| After any at-most-once scheduling attempt, that identity is in the seen set.
+public export
+containsAfterAtMostOnceSchedule :
+  (requestId : RequestId) -> (initial : SchedulerState) ->
+  containsRequest requestId
+    (seenAtMostOnce (schedule requestId AtMostOnce initial)) = True
+containsAfterAtMostOnceSchedule requestId
+  (MkSchedulerState seen effective reads sandboxes) =
+    containsAfterAtMostOnceScheduleByDecision
+      requestId seen effective reads sandboxes
+      (containsRequest requestId seen) Refl
+
 newAtMostOnceWellFormed :
   (requestId : RequestId) ->
   (seen : List RequestId) ->
@@ -597,6 +639,18 @@ diagnosticWhenUnseen :
 diagnosticWhenUnseen requestId seen effective reads sandboxes notSeen =
   rewrite notSeen in Refl
 
+||| Re-attempting immediately after an at-most-once attempt always emits the
+||| corresponding suppression diagnostic.
+public export
+diagnosticAfterAtMostOnceSchedule :
+  (requestId : RequestId) -> (initial : SchedulerState) ->
+  diagnosticFor
+    (ScheduleEvaluation requestId AtMostOnce)
+    (schedule requestId AtMostOnce initial) =
+  [SuppressedDuplicate requestId]
+diagnosticAfterAtMostOnceSchedule requestId initial =
+  rewrite containsAfterAtMostOnceSchedule requestId initial in Refl
+
 ||| Complete evidence for the two possible at-most-once outcomes.
 public export
 data AtMostOnceDecision :
@@ -656,6 +710,88 @@ collectDiagnostics [] _ = []
 collectDiagnostics (action :: rest) state =
   diagnosticFor action state ++
   collectDiagnostics rest (applyAction referenceModel action state)
+
+lengthWithInserted :
+  (leading : List element) -> (item : element) ->
+  (suffix : List element) ->
+  length (leading ++ item :: suffix) =
+  S (length (leading ++ suffix))
+lengthWithInserted [] item suffix = Refl
+lengthWithInserted (value :: rest) item suffix =
+  cong S (lengthWithInserted rest item suffix)
+
+lengthPrefixPreservesSuccessor :
+  (leading : List element) ->
+  length before = S (length after) ->
+  length (leading ++ before) = S (length (leading ++ after))
+lengthPrefixPreservesSuccessor [] difference = difference
+lengthPrefixPreservesSuccessor (value :: rest) difference =
+  cong S (lengthPrefixPreservesSuccessor rest difference)
+
+duplicateAddsSuppression :
+  (requestId : RequestId) -> (suffix : List Action) ->
+  (initial : SchedulerState) ->
+  length
+    (collectDiagnostics
+      (ScheduleEvaluation requestId AtMostOnce ::
+       ScheduleEvaluation requestId AtMostOnce :: suffix)
+      initial) =
+  S (length
+    (collectDiagnostics
+      (ScheduleEvaluation requestId AtMostOnce :: suffix)
+      initial))
+duplicateAddsSuppression requestId suffix initial =
+  rewrite diagnosticAfterAtMostOnceSchedule requestId initial in
+  rewrite scheduleAtMostOnceIdempotent requestId initial in
+  lengthWithInserted
+    (diagnosticFor (ScheduleEvaluation requestId AtMostOnce) initial)
+    (SuppressedDuplicate requestId)
+    (collectDiagnostics suffix (schedule requestId AtMostOnce initial))
+
+pruneAddsSuppression :
+  (leading : List Action) -> (suffix : List Action) ->
+  (requestId : RequestId) -> (initial : SchedulerState) ->
+  length
+    (collectDiagnostics
+      (leading ++
+       ScheduleEvaluation requestId AtMostOnce ::
+       ScheduleEvaluation requestId AtMostOnce :: suffix)
+      initial) =
+  S (length
+    (collectDiagnostics
+      (leading ++ ScheduleEvaluation requestId AtMostOnce :: suffix)
+      initial))
+pruneAddsSuppression [] suffix requestId initial =
+  duplicateAddsSuppression requestId suffix initial
+pruneAddsSuppression (action :: rest) suffix requestId initial =
+  lengthPrefixPreservesSuccessor
+    (diagnosticFor action initial)
+    (pruneAddsSuppression rest suffix requestId
+      (applyAction referenceModel action initial))
+
+||| Every permitted rewrite removes exactly one suppression diagnostic from
+||| reference execution.
+public export
+rewriteDiagnosticAccounting :
+  RewriteEvidence before after -> (initial : SchedulerState) ->
+  length (collectDiagnostics before initial) =
+  S (length (collectDiagnostics after initial))
+rewriteDiagnosticAccounting
+  (PruneRedundant leading suffix
+    (SameAtMostOnceEvaluation requestId)) initial =
+      pruneAddsSuppression leading suffix requestId initial
+
+||| Diagnostic loss across a derivation is exactly its number of rewrites.
+public export
+derivationDiagnosticAccounting :
+  (witness : Derivation before after) -> (initial : SchedulerState) ->
+  length (collectDiagnostics before initial) =
+  length (trace witness) + length (collectDiagnostics after initial)
+derivationDiagnosticAccounting Done initial = Refl
+derivationDiagnosticAccounting (Then step later) initial =
+  trans
+    (rewriteDiagnosticAccounting step initial)
+    (cong S (derivationDiagnosticAccounting later initial))
 
 ||| Execution keeps effective state and explanatory diagnostics separate.
 public export
@@ -745,6 +881,20 @@ atMostOnceAttemptAccounting (CallSandbox :: rest)
   (MkSchedulerState seen effective reads sandboxes) =
     atMostOnceAttemptAccounting rest
       (MkSchedulerState seen effective reads (S sandboxes))
+
+||| Normalization removes exactly one reference suppression diagnostic for
+||| every recorded rewrite. Effective semantics remain equal separately.
+public export
+normalizationDiagnosticAccounting :
+  (actions : List Action) -> (initial : SchedulerState) ->
+  length (diagnostics (execute actions initial)) =
+  length (audit (normalize actions)) +
+    length
+      (diagnostics
+        (execute (normalized (normalize actions)) initial))
+normalizationDiagnosticAccounting actions initial =
+  derivationDiagnosticAccounting
+    (derivation (normalize actions)) initial
 
 ||| The execution API and abstract interpreter share exactly one effective path.
 public export

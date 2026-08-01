@@ -97,6 +97,13 @@ attemptsAreAccountedFor actions =
    in length (seenAtMostOnce (effective result)) +
         length (diagnostics result) == countAtMostOnceAttempts actions
 
+normalizationDiagnosticsAreAccountedFor : List Action -> Bool
+normalizationDiagnosticsAreAccountedFor actions =
+  let result = normalize actions
+   in length (diagnostics (execute actions emptyState)) ==
+      length (audit result) +
+        length (diagnostics (execute (normalized result) emptyState))
+
 ||| The general idempotence theorem specializes to the documented example.
 exampleIdempotenceProof :
   normalized (normalize (normalized (normalize exampleInput))) =
@@ -151,6 +158,9 @@ main = do
   exhaustiveAttempts <- assertTrue
                           "all bounded attempts are accepted or suppressed"
                           (all attemptsAreAccountedFor boundedSequences)
+  exhaustiveNormalizationDiagnostics <- assertTrue
+    "every bounded rewrite removes one suppression diagnostic"
+    (all normalizationDiagnosticsAreAccountedFor boundedSequences)
   adjacentExecution <- assertEqual
                          "the runtime suppresses an adjacent duplicate"
                          (MkExecution
@@ -206,6 +216,7 @@ main = do
         , exhaustiveWellFormed
         , exhaustiveCounters
         , exhaustiveAttempts
+        , exhaustiveNormalizationDiagnostics
         , adjacentExecution
         , nonAdjacentExecution
         , distinctExecution
@@ -213,5 +224,5 @@ main = do
         , effectCounters
         ]
   if all id outcomes
-    then putStrLn "All 19 test groups passed."
+    then putStrLn "All 20 test groups passed."
     else exitWith (ExitFailure 1)

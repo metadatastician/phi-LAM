@@ -31,6 +31,12 @@ constructive accepted/suppressed classification: acceptance grows the seen set
 by one and emits no diagnostic; suppression preserves effective state and emits
 one diagnostic.
 
+Prove the complementary normalization accounting law: every permitted rewrite
+removes exactly one suppression diagnostic from reference execution. Across a
+complete normalization derivation, the raw diagnostic count therefore equals
+the audit length plus the normalized execution's diagnostic count. Effective
+state equality remains the separate semantic-preservation theorem.
+
 In Lean, define a pure streaming normalizer state containing a finalized output
 prefix and at most one pending action. Prove:
 
