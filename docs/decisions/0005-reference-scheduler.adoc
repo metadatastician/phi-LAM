@@ -1,0 +1,52 @@
+= ADR 0005: Add a pure reference scheduler
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+ADR 0004 made semantic preservation conditional on a caller-supplied
+`SchedulerModel`. The test suite instantiated that interface with a small test
+model, but the repository did not contain a reusable executable scheduler or a
+concrete proof that matched the intended global meaning of `AtMostOnce`.
+
+In particular, adjacency is a normalization concern, not a runtime definition:
+an at-most-once scheduler must also suppress a later attempt when unrelated
+actions occur between attempts.
+
+== Decision
+
+Provide `PhiLam.ReferenceScheduler`, a total, pure implementation whose state
+records:
+
+* identities already accepted under `AtMostOnce`;
+* effective scheduling requests, in acceptance order;
+* memory-read count; and
+* sandbox-call count.
+
+The first `AtMostOnce` request for an identity is effective. Every later
+request with that identity leaves effective state unchanged, including when
+other actions intervene. `Repeatable` requests are always effective and do not
+enter the at-most-once seen set.
+
+Prove `scheduleAtMostOnceIdempotent` for every identity and initial scheduler
+state, use it to construct `referenceModel`, and specialize the general
+normalization-preservation theorem to that model.
+
+Suppression diagnostics are computed alongside, but are not members of
+effective scheduler state. Consequently, the semantic theorem concerns
+effective state only. It does not claim that normalization preserves an
+attempt-level diagnostic log: removing an adjacent duplicate can also remove
+the diagnostic that would have described its suppression.
+
+== Consequences
+
+The abstract law now has a checked, executable witness and tests can exercise
+the same implementation shipped by the package instead of a private mock.
+Non-adjacent suppression is observable and tested even though the current
+normalizer only rewrites adjacent duplicates.
+
+This remains a reference semantics, not evidence about external effects. A
+queue, database, LLM API, or distributed orchestrator needs an adapter with its
+own idempotency mechanism and proof or refinement argument. Crashes,
+concurrency, persistence, identifier validation, and delivery guarantees are
+outside this decision.
