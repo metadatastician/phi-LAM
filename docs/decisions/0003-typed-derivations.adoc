@@ -17,9 +17,10 @@ sequence.
 == Decision
 
 Represent a single rewrite as `RewriteEvidence before after` and a sequence as
-`Derivation before after`. The sole evidence constructor contains the leading
-context and suffix, and its indices state exactly that it removes the second of
-two adjacent evaluations.
+`Derivation before after`. The evidence constructor contains the leading
+context and suffix, and its indices state exactly which adjacent entry is
+removed. ADR 0004 subsequently narrows construction of that evidence to
+identical at-most-once request identities.
 
 Each `Normalization input` now contains:
 
@@ -41,6 +42,6 @@ The normalizer cannot claim an unrelated output without also constructing the
 corresponding evidence. Consumers that only need diagnostics can use `audit`;
 proof-aware consumers can retain the indexed derivation.
 
-This does not prove domain-level semantic preservation. phi-LAM still lacks a
-definition of observable program meaning, so that stronger claim would be
-premature.
+At the time of this decision there was no interpretation theorem. ADR 0004 adds
+model-parametric scheduler semantics without claiming that any unverified
+external runtime satisfies the required scheduler law.

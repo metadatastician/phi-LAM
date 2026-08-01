@@ -5,10 +5,11 @@ phi-LAM is a pre-alpha research seed for describing and normalising small,
 typed action sequences.
 
 The repository currently contains one deliberately narrow Idris 2 component:
-an explicit rewrite rule that removes adjacent duplicate `EvaluateLLM` actions
-and returns both the normal form and a type-aligned derivation. That component
-is the whole implemented scope. It is not yet an agent architecture, a runtime,
-a sandbox, an inference engine, or a Kautz-graph implementation.
+an explicit rewrite rule that removes adjacent scheduler entries only when
+they carry the same request identity and the `AtMostOnce` policy. It returns
+both the normal form and a type-aligned derivation. That component is the whole
+implemented scope. It is not yet an agent architecture, a runtime, a sandbox,
+an inference engine, or a Kautz-graph implementation.
 
 == Evidence-backed example
 
@@ -16,14 +17,21 @@ The checked implementation maps:
 
 [source]
 ----
-[ReadMemory, EvaluateLLM, EvaluateLLM, CallSandbox]
+[ ReadMemory
+, ScheduleEvaluation(request-0, AtMostOnce)
+, ScheduleEvaluation(request-0, AtMostOnce)
+, CallSandbox
+]
 ----
 
 to:
 
 [source]
 ----
-[ReadMemory, EvaluateLLM, CallSandbox]
+[ ReadMemory
+, ScheduleEvaluation(request-0, AtMostOnce)
+, CallSandbox
+]
 ----
 
 with a trace identifying the application of `PruneRedundantEvaluation` at
@@ -34,10 +42,15 @@ input position `2` (zero based).
 The Idris types and total proofs establish that:
 
 * every derivation step transforms its indexed input into its indexed output;
-* only the second of two adjacent `EvaluateLLM` actions can be removed;
-* the result contains no adjacent duplicate evaluations;
+* only the second of two identical adjacent `AtMostOnce` requests can be
+  removed;
+* requests with different identities, `Repeatable` requests, and mixed
+  policies are retained;
+* the result contains no pair carrying redundancy evidence;
 * normalization cannot invent or reorder retained actions; and
-* normalization is idempotent.
+* normalization is idempotent; and
+* normalization preserves interpretation for every scheduler model that proves
+  its at-most-once operation idempotent.
 
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
@@ -62,9 +75,10 @@ See link:docs/status/STATE.adoc[STATE] for the claim ledger and
 link:docs/decisions/0001-semantic-seed.adoc[ADR 0001] for the deliberately
 small first milestone. link:docs/decisions/0003-typed-derivations.adoc[ADR 0003]
 records the move from untyped trace records to indexed evidence. The earlier
-generated scaffold is preserved in Git by
-the annotated tag `forensic/gemini-scaffold-2026-08-01`; it is not a supported
-release.
+link:docs/decisions/0004-evidenced-redundancy.adoc[ADR 0004] defines request
+identity, replay policy, and model-parametric scheduler semantics. The earlier
+generated scaffold is preserved in Git by the annotated tag
+`forensic/gemini-scaffold-2026-08-01`; it is not a supported release.
 
 == Licensing
 
