@@ -1,5 +1,5 @@
 = ADR 0001: Begin with one executable semantic rule
-:status: accepted
+:status: accepted; amended by ADR 0003 and ADR 0004
 :date: 2026-08-01
 
 == Context
@@ -18,11 +18,17 @@ The first implementation milestone is restricted to this observable contract:
 * output: the normalised list and an ordered derivation trace;
 * evidence: a compiling Idris 2 package and executable tests.
 
+ADR 0003 replaced the original untyped trace with indexed derivations and
+formal invariants. ADR 0004 replaced the blanket `EvaluateLLM` adjacency rule
+with request identity, replay policy, redundancy evidence, and abstract
+scheduler semantics. The list above records the deliberately small historical
+starting point rather than the current API.
+
 Idris 2 is used because the project is investigating typed operational
-semantics. This decision does not claim that dependent types are already being
-used to prove normalisation, confluence, termination, or safety. Totality
-checking covers the current normaliser; the stronger properties remain future
-work.
+semantics. At the time of this decision, totality checking covered the
+normalizer while stronger properties remained future work. ADR 0003 now proves
+normal-form production, idempotence, and order preservation; ADR 0004 adds
+conditional semantic preservation for lawful scheduler models.
 
 == Consequences
 

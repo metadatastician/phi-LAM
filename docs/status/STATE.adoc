@@ -11,12 +11,13 @@ This ledger distinguishes intentions from evidence. Status terms are:
 
 |Closed action vocabulary
 |implemented
-|`src/PhiLam/Action.idr` defines the three currently supported actions.
+|`src/PhiLam/Action.idr` defines memory reads, sandbox calls, and scheduled
+evaluations carrying a `RequestId` and `ReplayPolicy`.
 
-|Adjacent evaluation normalisation
+|Evidence-based scheduling normalisation
 |verified
 |`src/PhiLam/Normalize.idr` is total and returns a `NormalForm` certificate;
-`normalizedIsNormal` connects that certificate to the executable predicate.
+only identical adjacent `AtMostOnce` requests construct `Redundant` evidence.
 
 |Derivation trace
 |verified
@@ -32,10 +33,21 @@ rewrite by type. `audit` erases that evidence to named dynamic positions.
 |`normalizationPreservesOrder` constructs `Subsequence output input` for every
 input sequence.
 
-|Confluence or domain-level semantic preservation
+|Abstract scheduler semantic preservation
+|verified
+|`normalizePreservesSemantics` proves equal interpretation for every
+`SchedulerModel` satisfying its explicit at-most-once idempotence law.
+
+|Concrete runtime semantic preservation
 |hypothesis
-|There is one deterministic rule, but no domain semantics against which to
-state or prove observational preservation.
+|No runtime interpreter exists. A future adapter must construct a lawful model;
+the abstract theorem does not assert that an arbitrary external scheduler is
+idempotent.
+
+|Confluence for a multi-rule system
+|hypothesis
+|There remains one deterministic rewrite rule. No multi-rule confluence claim
+is needed or made.
 
 |Kautz graph topology or “Type 6” semantics
 |hypothesis
@@ -43,15 +55,15 @@ state or prove observational preservation.
 
 |Elixir orchestrator
 |hypothesis
-|No orchestrator exists on the clean foundation branch.
+|No orchestrator exists on `main`.
 
 |Zig sandbox
 |hypothesis
-|No sandbox exists on the clean foundation branch.
+|No sandbox exists on `main`.
 
 |Julia inference engine
 |hypothesis
-|No inference engine exists on the clean foundation branch.
+|No inference engine exists on `main`.
 
 |Multi-language integration
 |hypothesis
@@ -62,9 +74,12 @@ state or prove observational preservation.
 |There is no deployment, release, threat model, or operational evidence.
 |===
 
-The executable suite also exhaustively checks all 364 sequences of length zero
-through five for normality, idempotence, and trace/removal accounting. These
-bounded tests supplement the general proofs; they are not their foundation.
+The executable suite also exhaustively checks all 781 sequences of length zero
+through four over a five-action vocabulary for normality, idempotence,
+trace/removal accounting, and agreement with a concrete lawful test model. It
+also checks negative cases for different request identities, repeatable
+requests, and mixed policies. These bounded tests supplement the general
+proofs; they are not their foundation.
 
 The original generated state is retained by the annotated Git tag
 `forensic/gemini-scaffold-2026-08-01` for audit and comparison.

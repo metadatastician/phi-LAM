@@ -1,0 +1,51 @@
+= ADR 0004: Require evidence for scheduling redundancy
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The original action vocabulary treated every adjacent pair of evaluation
+markers as redundant. That is not a valid model of actual LLM calls: sampling
+may be nondeterministic, context may change, retries may be intentional, and
+separate calls may have distinct identities or effects.
+
+The existing type-aligned derivation proved that the implementation removed the
+claimed pair. It did not justify calling the pair redundant.
+
+== Decision
+
+Actions represent symbolic scheduler entries rather than completed effects.
+Every scheduled evaluation carries:
+
+* a stable `RequestId`; and
+* a `ReplayPolicy` of `AtMostOnce` or `Repeatable`.
+
+`Redundant first second` can be constructed only for adjacent scheduling
+entries with the same request identity and the `AtMostOnce` policy. Different
+identities, repeatable requests, and mixed policies do not carry such evidence
+and therefore cannot be pruned.
+
+Define interpretation through `SchedulerModel state`. A model supplies the
+state transitions for memory reads, scheduled evaluations, and sandbox calls.
+It must prove one law: applying the same `AtMostOnce` request twice has exactly
+the effect of applying it once.
+
+For every conforming model, `normalizePreservesSemantics` proves that
+interpreting the input and interpreting its normalized output produce equal
+states.
+
+== Consequences
+
+Redundancy is now a witnessed property of two requests, not a conclusion drawn
+from adjacency alone. Normalization remains independent of any concrete
+runtime, while semantic preservation is conditional on an explicit and
+machine-checked model law.
+
+An eventual runtime adapter must construct a `SchedulerModel` and discharge
+that law. The existence of the abstract theorem does not certify arbitrary LLM
+APIs, retry loops, queues, or orchestration frameworks.
+
+Request identifiers are currently natural numbers because the semantic kernel
+needs transparent decidable equality, not a production identifier format. A
+future boundary may validate and map UUIDs or content-addressed identifiers to
+this core representation without weakening the proofs.
