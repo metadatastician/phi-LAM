@@ -81,6 +81,10 @@ executionInterpreterAgreement actions =
   effective (execute actions emptyState) ==
   interpret referenceModel actions emptyState
 
+executionStateIsWellFormed : List Action -> Bool
+executionStateIsWellFormed actions =
+  isWellFormed (effective (execute actions emptyState))
+
 ||| The general idempotence theorem specializes to the documented example.
 exampleIdempotenceProof :
   normalized (normalize (normalized (normalize exampleInput))) =
@@ -126,6 +130,9 @@ main = do
   exhaustiveExecution <- assertTrue
                           "execution agrees with interpretation on every bounded sequence"
                           (all executionInterpreterAgreement boundedSequences)
+  exhaustiveWellFormed <- assertTrue
+                            "all bounded executions preserve scheduler coherence"
+                            (all executionStateIsWellFormed boundedSequences)
   adjacentExecution <- assertEqual
                          "the runtime suppresses an adjacent duplicate"
                          (MkExecution
@@ -178,6 +185,7 @@ main = do
         , exhaustiveAccounting
         , exhaustiveSemantics
         , exhaustiveExecution
+        , exhaustiveWellFormed
         , adjacentExecution
         , nonAdjacentExecution
         , distinctExecution
@@ -185,5 +193,5 @@ main = do
         , effectCounters
         ]
   if all id outcomes
-    then putStrLn "All 16 test groups passed."
+    then putStrLn "All 17 test groups passed."
     else exitWith (ExitFailure 1)
