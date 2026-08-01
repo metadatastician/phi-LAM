@@ -39,10 +39,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build and independently check proofs
-        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
-        with:
-          lake-package-directory: formal/lean
-          build: true
-          nanoda: true
-          nanoda-allow-sorry: false
+      - name: Install pinned Lean toolchain
+        env:
+          LEAN_SHA256: 5f2069e6f5db73780f374ccb49ce8ea649aa20a0cebf0116816744c999ce72aa
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/lean.tar.zst" \
+            https://github.com/leanprover/lean4/releases/download/v4.32.2/lean-4.32.2-linux.tar.zst
+          echo "$LEAN_SHA256  $RUNNER_TEMP/lean.tar.zst" | sha256sum --check
+          tar --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-4.32.2-linux/bin" >> "$GITHUB_PATH"
+
+      - name: Build with warnings forbidden
+        working-directory: formal/lean
+        run: lake build --wfail
+
+      - name: Independently check compiled environment
+        working-directory: formal/lean
+        run: lake env leanchecker PhiLamFormal
