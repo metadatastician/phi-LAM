@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Idris 2
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: ghcr.io/stefan-hoeck/idris2-pack@sha256:f0758996a931fb35d9ecb1de273c4d59dabe2a09b433afc7e357f65a08b7e1ff
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Record toolchain
+        run: idris2 --version
+
+      - name: Build library
+        run: idris2 --build phi-lam.ipkg
+
+      - name: Build and run tests
+        run: |
+          idris2 --source-dir src -o phi-lam-tests src/TestNormalize.idr
+          ./build/exec/phi-lam-tests

@@ -1,0 +1,32 @@
+= ADR 0001: Begin with one executable semantic rule
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The first repository state contained a large, mostly generic template plus
+disconnected Elixir, Zig, Idris 2, and Julia sketches. It did not demonstrate a
+working multi-language system. Extending that shape would turn aspirations into
+more unauditable surface area.
+
+== Decision
+
+The first implementation milestone is restricted to this observable contract:
+
+* input: a finite list of values from a closed `Action` type;
+* rule: adjacent `EvaluateLLM` actions collapse to one action;
+* output: the normalised list and an ordered derivation trace;
+* evidence: a compiling Idris 2 package and executable tests.
+
+Idris 2 is used because the project is investigating typed operational
+semantics. This decision does not claim that dependent types are already being
+used to prove normalisation, confluence, termination, or safety. Totality
+checking covers the current normaliser; the stronger properties remain future
+work.
+
+== Consequences
+
+Elixir orchestration, Zig sandboxing, Julia inference, FFI boundaries, and
+deployment machinery are absent until a concrete need and an integration test
+justify each of them. A small honest repository is preferable to a broad
+non-system.

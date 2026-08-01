@@ -1,0 +1,56 @@
+= Claim ledger
+:date: 2026-08-01
+
+This ledger distinguishes intentions from evidence. Status terms are:
+`hypothesis`, `specified`, `sketched`, `implemented`, `integrated`, `tested`,
+`verified`, and `operational`.
+
+[cols="2,1,4",options="header"]
+|===
+|Claim |Status |Evidence or limitation
+
+|Closed action vocabulary
+|implemented
+|`src/PhiLam/Action.idr` defines the three currently supported actions.
+
+|Adjacent evaluation normalisation
+|tested
+|`src/PhiLam/Normalize.idr` is total; `src/TestNormalize.idr` exercises the
+documented case, fixed points, runs of three, and rule boundaries.
+
+|Derivation trace
+|tested
+|Each removed action produces a named rule application and zero-based input
+position; tests check the exact trace.
+
+|Formal proof of idempotence, confluence, or semantic preservation
+|hypothesis
+|No such proposition or proof exists yet.
+
+|Kautz graph topology or “Type 6” semantics
+|hypothesis
+|The terminology is quarantined by ADR 0002 pending a definition.
+
+|Elixir orchestrator
+|hypothesis
+|No orchestrator exists on the clean foundation branch.
+
+|Zig sandbox
+|hypothesis
+|No sandbox exists on the clean foundation branch.
+
+|Julia inference engine
+|hypothesis
+|No inference engine exists on the clean foundation branch.
+
+|Multi-language integration
+|hypothesis
+|There are no language boundaries or integration tests.
+
+|Production readiness
+|hypothesis
+|There is no deployment, release, threat model, or operational evidence.
+|===
+
+The original generated state is retained by the annotated Git tag
+`forensic/gemini-scaffold-2026-08-01` for audit and comparison.

@@ -1,0 +1,11 @@
+package phi-lam
+
+version = 0.0.1
+authors = "Jonathan D.A. Jewell"
+brief = "A minimal typed action-sequence normaliser"
+license = "MPL-2.0"
+
+sourcedir = "src"
+
+modules = PhiLam.Action,
+          PhiLam.Normalize

@@ -1,6 +1,0 @@
-package phi_lam
-version = 0.1.0
-authors = "hyperpolymath"
-main = Main
-executable = "phi_lam"
-sourcedir = "src"
