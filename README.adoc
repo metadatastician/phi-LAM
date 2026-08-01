@@ -4,12 +4,14 @@
 phi-LAM is a pre-alpha research seed for describing and normalising small,
 typed action sequences.
 
-The repository currently contains one deliberately narrow Idris 2 component:
-an explicit rewrite rule that removes adjacent scheduler entries only when
-they carry the same request identity and the `AtMostOnce` policy. It returns
-both the normal form and a type-aligned derivation. That component is the whole
-implemented scope. It is not yet an agent architecture, a runtime, a sandbox,
-an inference engine, or a Kautz-graph implementation.
+The repository currently contains a deliberately narrow Idris 2 semantic
+kernel and pure reference scheduler. The normalizer removes adjacent scheduler
+entries only when they carry the same request identity and the `AtMostOnce`
+policy, returning both the normal form and a type-aligned derivation. The
+reference scheduler gives that policy executable meaning: the first request
+changes effective state and later attempts with the same identity are
+suppressed. This is not yet an agent architecture, an external scheduler
+adapter, a sandbox, an inference engine, or a Kautz-graph implementation.
 
 == Evidence-backed example
 
@@ -52,6 +54,13 @@ The Idris types and total proofs establish that:
 * normalization preserves interpretation for every scheduler model that proves
   its at-most-once operation idempotent.
 
+`PhiLam.ReferenceScheduler` discharges that model obligation for a concrete,
+pure state transition. Its checked theorem proves that scheduling the same
+`AtMostOnce` identity twice has exactly the effective state of scheduling it
+once. `execute` reports suppressed duplicate attempts as diagnostics kept
+separate from effective semantics; normalization is not claimed to preserve
+those diagnostic lists.
+
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
 positions in the original input.
@@ -76,7 +85,9 @@ link:docs/decisions/0001-semantic-seed.adoc[ADR 0001] for the deliberately
 small first milestone. link:docs/decisions/0003-typed-derivations.adoc[ADR 0003]
 records the move from untyped trace records to indexed evidence. The earlier
 link:docs/decisions/0004-evidenced-redundancy.adoc[ADR 0004] defines request
-identity, replay policy, and model-parametric scheduler semantics. The earlier
+identity, replay policy, and model-parametric scheduler semantics.
+link:docs/decisions/0005-reference-scheduler.adoc[ADR 0005] records the pure
+reference scheduler and the boundary of its guarantees. The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.
 
