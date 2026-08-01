@@ -30,3 +30,19 @@ jobs:
         run: |
           idris2 --source-dir src -o phi-lam-tests src/TestNormalize.idr
           ./build/exec/phi-lam-tests
+
+  lean:
+    name: Lean 4
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and independently check proofs
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
+        with:
+          lake-package-directory: formal/lean
+          build: true
+          nanoda: true
+          nanoda-allow-sorry: false

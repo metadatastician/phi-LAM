@@ -9,7 +9,10 @@ test:
     {{idris2}} --source-dir src -o phi-lam-tests src/TestNormalize.idr
     ./build/exec/phi-lam-tests
 
-check: build test
+lean-check:
+    cd formal/lean && lake build
+
+check: build test lean-check
 
 clean:
     {{idris2}} --clean phi-lam.ipkg

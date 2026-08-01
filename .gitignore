@@ -1,6 +1,7 @@
 /build/
 *.ibc
 *.ttc
+/formal/lean/.lake/
 
 # Agent-local worktrees and state are not project source.
 /.claude/

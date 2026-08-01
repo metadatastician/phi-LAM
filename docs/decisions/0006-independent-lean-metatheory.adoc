@@ -1,0 +1,45 @@
+= ADR 0006: Independently reconstruct the metatheory in Lean 4
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The Idris implementation combines executable normalization with dependent
+certificates. That is appropriate for the semantic kernel, but a defect shared
+by the definitions and their proofs could still make an intended property look
+established. A second proof assistant is useful only if it adds genuine
+independence and its assurance claim is stated precisely.
+
+== Decision
+
+Reconstruct the narrow action calculus in Lean 4 without generated Idris
+bindings and without depending on Mathlib. The Lean development defines its
+own action vocabulary, adjacency predicate, normalizer, rewrite relation,
+multi-step derivations, scheduler model, and interpreter.
+
+Prove in Lean that:
+
+* normalization produces a `Normal` witness;
+* every normal form is a fixed point;
+* normalization is idempotent;
+* every normalization result is connected to its input by valid rewrite
+  steps;
+* one permitted rewrite preserves every lawful scheduler interpretation; and
+* therefore normalization preserves every lawful scheduler interpretation.
+
+Compile shared positive and negative rule-boundary vectors in both languages.
+CI builds the Lake package and requests an independent environment check with
+`sorry` placeholders forbidden.
+
+== Consequences
+
+Lean provides an independent reconstruction of the mathematical argument and
+can expose mistakes in the Idris formulation or proof structure. It does not
+prove that the Idris and Lean programs are extensionally equal: the repository
+has no verified translation, common extracted core, or cross-language
+equivalence theorem. The vectors provide finite correspondence evidence only.
+
+The development also does not claim multi-rule confluence, termination of an
+eventual enlarged calculus, or correctness of an external runtime adapter.
+Those obligations become necessary only when their corresponding systems or
+rules exist.

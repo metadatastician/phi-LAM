@@ -38,6 +38,19 @@ input sequence.
 |`normalizePreservesSemantics` proves equal interpretation for every
 `SchedulerModel` satisfying its explicit at-most-once idempotence law.
 
+|Independent Lean normalizer metatheory
+|verified
+|`formal/lean/PhiLamFormal.lean` reconstructs the calculus in Lean 4 and proves
+normal-form production, fixed points, idempotence, derivation construction,
+and model-parametric semantic preservation. CI also invokes an independent
+Lean environment checker with `sorry` disallowed.
+
+|Idris–Lean implementation equivalence
+|tested
+|Both implementations check the documented positive and negative vectors.
+There is no extraction pipeline or theorem relating the two source languages,
+so full implementation equivalence is not claimed.
+
 |Concrete runtime semantic preservation
 |hypothesis
 |No runtime interpreter exists. A future adapter must construct a lawful model;
