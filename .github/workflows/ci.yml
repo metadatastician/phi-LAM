@@ -43,7 +43,8 @@ jobs:
         env:
           LEAN_SHA256: 5f2069e6f5db73780f374ccb49ce8ea649aa20a0cebf0116816744c999ce72aa
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/lean.tar.zst" \
+          curl --proto '=https' --proto-redir '=https' -fsSL \
+            -o "$RUNNER_TEMP/lean.tar.zst" \
             https://github.com/leanprover/lean4/releases/download/v4.32.2/lean-4.32.2-linux.tar.zst
           echo "$LEAN_SHA256  $RUNNER_TEMP/lean.tar.zst" | sha256sum --check
           tar --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP"
