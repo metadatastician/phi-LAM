@@ -1,0 +1,10 @@
+name = "phi-lam-formal"
+version = "0.1.0"
+defaultTargets = ["PhiLamFormal", "phiLamVectors"]
+
+[[lean_lib]]
+name = "PhiLamFormal"
+
+[[lean_exe]]
+name = "phiLamVectors"
+root = "Main"

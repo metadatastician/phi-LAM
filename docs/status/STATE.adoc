@@ -62,6 +62,20 @@ preservation under normalization is deliberately not claimed.
 lawful model; the reference proof does not assert that an arbitrary scheduler,
 LLM API, retry loop, or persistence layer is idempotent.
 
+|Independent Lean normalizer metatheory
+|verified
+|`formal/lean/PhiLamFormal.lean` reconstructs the calculus in Lean 4 and proves
+normal-form production, fixed points, idempotence, derivation construction,
+and model-parametric semantic preservation. CI treats warnings, including
+`sorry`, as failures and runs `leanchecker` over the compiled environment.
+
+|Idris–Lean correspondence vectors
+|tested
+|Both implementations check the documented positive and negative vectors and
+the same 781-sequence bounded corpus. There is no extraction pipeline or
+theorem relating the two source languages, so full implementation equivalence
+is not claimed.
+
 |Confluence for a multi-rule system
 |hypothesis
 |There remains one deterministic rewrite rule. No multi-rule confluence claim

@@ -61,6 +61,15 @@ once. `execute` reports suppressed duplicate attempts as diagnostics kept
 separate from effective semantics; normalization is not claimed to preserve
 those diagnostic lists.
 
+An independent Lean 4 formalization in `formal/lean/` reconstructs the action
+calculus rather than importing generated Idris output. It proves that the Lean
+normalizer produces a normal form, normal forms are fixed points,
+normalization is idempotent, normalization constructs a valid rewrite
+derivation, and every such derivation preserves every lawful scheduler model.
+Shared examples check agreement on the documented rule boundary. This is
+independent theorem-prover corroboration, not a formal compiler-to-compiler
+equivalence theorem.
+
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
 positions in the original input.
@@ -74,6 +83,7 @@ The currently checked toolchain is Idris 2 0.7.0.
 idris2 --build phi-lam.ipkg
 idris2 --source-dir src -o phi-lam-tests src/TestNormalize.idr
 ./build/exec/phi-lam-tests
+cd formal/lean && lake build
 ----
 
 If `just` is installed, `just check` performs all three steps.
@@ -87,7 +97,9 @@ records the move from untyped trace records to indexed evidence. The earlier
 link:docs/decisions/0004-evidenced-redundancy.adoc[ADR 0004] defines request
 identity, replay policy, and model-parametric scheduler semantics.
 link:docs/decisions/0005-reference-scheduler.adoc[ADR 0005] records the pure
-reference scheduler and the boundary of its guarantees. The earlier
+reference scheduler and the boundary of its guarantees.
+link:docs/decisions/0006-independent-lean-metatheory.adoc[ADR 0006] defines the
+role and limits of the independent Lean formalization. The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.
 
