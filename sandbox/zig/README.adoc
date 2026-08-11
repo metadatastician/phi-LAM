@@ -1,0 +1,10 @@
+= Zig policy boundary
+
+`phi-lam-policy` is a deterministic, deny-by-default capability evaluator. It
+is deliberately a policy component, not an operating-system sandbox. An
+`allow` result conveys no containment by itself; the completion plan requires a
+separate process boundary, resource limits, syscall/filesystem/network
+enforcement, hostile-payload tests, and a fail-closed launcher.
+
+Run `zig build test`. For example, `zig build run` is intentionally not exposed;
+the installed CLI accepts one operation followed by zero or more exact grants.

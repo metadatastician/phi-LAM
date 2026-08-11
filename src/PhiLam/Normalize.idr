@@ -122,6 +122,37 @@ trace : Derivation before after -> List Step
 trace Done = []
 trace (Then step later) = rewriteStep step :: trace later
 
+||| Every primitive rewrite removes exactly one action.
+pruneRemovesOne :
+  (leading : List Action) -> (first : Action) ->
+  (second : Action) -> (suffix : List Action) ->
+  length (leading ++ first :: second :: suffix) =
+  S (length (leading ++ first :: suffix))
+pruneRemovesOne [] first second suffix = Refl
+pruneRemovesOne (action :: leading) first second suffix =
+  cong S (pruneRemovesOne leading first second suffix)
+
+public export
+rewriteRemovesOne : RewriteEvidence before after ->
+  length before = S (length after)
+rewriteRemovesOne
+  (PruneRedundant leading suffix (SameAtMostOnceEvaluation requestId)) =
+    pruneRemovesOne
+      leading
+      (ScheduleEvaluation requestId AtMostOnce)
+      (ScheduleEvaluation requestId AtMostOnce)
+      suffix
+
+||| The erased trace length exactly accounts for every derivation removal.
+public export
+derivationLengthAccounting : (witness : Derivation before after) ->
+  length before = length (trace witness) + length after
+derivationLengthAccounting Done = Refl
+derivationLengthAccounting (Then step later) =
+  trans
+    (rewriteRemovesOne step)
+    (cong S (derivationLengthAccounting later))
+
 ||| Evidence that the first list occurs in order within the second list.
 public export
 data Subsequence : List element -> List element -> Type where
@@ -239,6 +270,15 @@ normalize (first :: rest) =
         (first :: normalizedTail result)
         (nonEmptyDerivation result)
         (nonEmptyCertificate result)
+
+||| Normalization's audit length exactly equals the number of removed actions.
+public export
+normalizationLengthAccounting : (actions : List Action) ->
+  length actions =
+  length (audit (normalize actions)) +
+  length (normalized (normalize actions))
+normalizationLengthAccounting actions =
+  derivationLengthAccounting (derivation (normalize actions))
 
 ||| The output of normalization is an order-preserving subsequence of input.
 public export

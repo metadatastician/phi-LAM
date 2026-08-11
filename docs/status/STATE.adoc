@@ -23,6 +23,8 @@ only identical adjacent `AtMostOnce` requests construct `Redundant` evidence.
 |verified
 |`RewriteEvidence before after` and `Derivation before after` align every
 rewrite by type. `audit` erases that evidence to named dynamic positions.
+`normalizationLengthAccounting` proves that the audit length is exactly the
+number of removed actions.
 
 |Idempotence
 |verified
@@ -44,6 +46,25 @@ input sequence.
 proves `scheduleAtMostOnceIdempotent` for all request identities and initial
 states.
 
+|Reference scheduler coherence
+|verified
+|`WellFormed` requires unique seen identities and proves their reverse is
+exactly the at-most-once acceptance order in the effective schedule. Every
+action preserves this invariant, so every execution from `emptyState` is
+coherent.
+
+|Reference effect counters
+|verified
+|`interpretMemoryReadsExactly` and `interpretSandboxCallsExactly` prove that
+only the corresponding actions increment each counter and that the final value
+is exactly the initial value plus the symbolic action count.
+
+|Attempt conservation
+|verified
+|`atMostOnceAttemptAccounting` proves that every at-most-once attempt contributes
+exactly one unit to either seen-set growth or suppression diagnostics, from any
+initial scheduler state.
+
 |Reference scheduler normalization preservation
 |verified
 |`referenceNormalizationPreservesSemantics` specializes the general theorem to
@@ -51,54 +72,98 @@ the executable reference model. The bounded corpus independently checks the
 same agreement.
 
 |Suppression diagnostics
-|tested
-|`execute` separates effective state from `SuppressedDuplicate` diagnostics.
-Tests cover adjacent and non-adjacent duplicate attempts. Diagnostic-list
-preservation under normalization is deliberately not claimed.
+|verified
+|`AtMostOnceDecision` constructively classifies every attempt as accepted or
+suppressed and carries proofs of the membership condition, effective
+transition, and exact diagnostic. Diagnostic-list preservation under
+normalization is deliberately not claimed; `normalizationDiagnosticAccounting`
+instead proves that each recorded rewrite removes exactly one suppression
+diagnostic.
 
 |External runtime semantic preservation
 |hypothesis
-|No external queue or service adapter exists. A future adapter must construct a
-lawful model; the reference proof does not assert that an arbitrary scheduler,
-LLM API, retry loop, or persistence layer is idempotent.
+|Queue and adapter behaviours now expose the boundary, but no implementation is
+integrated. A future adapter must construct a lawful model; the reference proof
+does not assert that an arbitrary scheduler, LLM API, retry loop, or persistence
+layer is idempotent.
 
-|Confluence for a multi-rule system
+|Independent Lean normalizer metatheory
+|verified
+|`formal/lean/PhiLamFormal.lean` reconstructs the calculus in Lean 4 and proves
+normal-form production, fixed points, executable/logical normality equivalence,
+strict decrease, absence of infinite chains, exact derivation accounting,
+confluence, unique reachable normal forms, completeness, and model-parametric
+semantic preservation. CI treats warnings, including `sorry`, as failures and
+runs `leanchecker` over the compiled environment.
+
+|Idris–Lean correspondence vectors
+|tested
+|Both implementations check the documented positive and negative vectors and
+the same 781-sequence bounded corpus. There is no extraction pipeline or
+theorem relating the two source languages, so full implementation equivalence
+is not claimed.
+
+|Confluence of the current rewrite system
+|verified
+|Every derivation preserves `normalize`; any two results reachable from one
+input therefore join at its normalized form, and reachable normal forms are
+unique.
+
+|Streaming normalization
+|verified
+|Lean's `streamChunk_append`, `streamNormalize_chunked`, and
+`streamNormalize_eq_normalize` prove resumable chunk processing and batch
+normalization agree, using one pending action to handle a redundant pair split
+across a boundary.
+
+|Confluence after adding more rules
 |hypothesis
-|There remains one deterministic rewrite rule. No multi-rule confluence claim
-is needed or made.
+|The proof covers the current single rule. Every future rule needs termination,
+normalization-invariance, and interaction proofs before this status can extend
+to a larger calculus.
 
 |Kautz graph topology or “Type 6” semantics
 |hypothesis
 |The terminology is quarantined by ADR 0002 pending a definition.
 
 |Elixir orchestrator
-|hypothesis
-|No orchestrator exists on `main`.
+|tested
+|`orchestrator/` validates request identity, implements the v1 lifecycle, and
+tests atomic duplicate admission plus DETS restart recovery. It has no broker,
+external adapter, distributed ownership, or abrupt-power-loss evidence.
 
 |Zig sandbox
-|hypothesis
-|No sandbox exists on `main`.
+|tested
+|`sandbox/zig/` compiles and tests an exact, deny-by-default capability policy.
+It is not an OS sandbox and does not execute untrusted code.
 
 |Julia inference engine
-|hypothesis
-|No inference engine exists on `main`.
+|tested
+|`inference/julia/` validates finite input and deterministically runs the
+explicit `fixture-mean-v1` model. There is no learned model or quality claim.
 
 |Multi-language integration
-|hypothesis
-|There are no language boundaries or integration tests.
+|specified
+|`contracts/v1/` defines common wire shapes and fixtures. Current checks cover
+syntax and component behavior, not generated bindings, full schema validation,
+or an end-to-end cross-process exchange.
 
 |Production readiness
 |hypothesis
-|There is no deployment, release, threat model, or operational evidence.
+|A threat model and gated completion plan now exist, but there is no deployment,
+release, OS containment, real inference model, or operational evidence.
 |===
 
 The executable suite also exhaustively checks all 781 sequences of length zero
 through four over a five-action vocabulary for normality, idempotence,
 trace/removal accounting, agreement between original and normalized reference
-execution, and agreement between the execution API and interpreter. Additional
-cases cover distinct identities, repeatable requests, mixed policies,
-non-adjacent suppression, diagnostics, and memory/sandbox counters. These
-bounded tests supplement the general proofs; they are not their foundation.
+execution, agreement between the execution API and interpreter, and scheduler
+coherence. The same corpus also checks exact effect counters, attempt
+conservation, and Lean streaming/batch agreement. Additional cases cover
+distinct identities, repeatable requests, mixed policies, non-adjacent
+suppression, diagnostics, chunk-boundary suppression, and memory/sandbox
+counters. These bounded tests supplement the general proofs; they are not their
+foundation.
 
 The original generated state is retained by the annotated Git tag
 `forensic/gemini-scaffold-2026-08-01` for audit and comparison.

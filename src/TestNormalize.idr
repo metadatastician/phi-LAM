@@ -81,6 +81,29 @@ executionInterpreterAgreement actions =
   effective (execute actions emptyState) ==
   interpret referenceModel actions emptyState
 
+executionStateIsWellFormed : List Action -> Bool
+executionStateIsWellFormed actions =
+  isWellFormed (effective (execute actions emptyState))
+
+executionCountersAreExact : List Action -> Bool
+executionCountersAreExact actions =
+  let final = effective (execute actions emptyState)
+   in memoryReads final == countMemoryReads actions &&
+      sandboxCalls final == countSandboxCalls actions
+
+attemptsAreAccountedFor : List Action -> Bool
+attemptsAreAccountedFor actions =
+  let result = execute actions emptyState
+   in length (seenAtMostOnce (effective result)) +
+        length (diagnostics result) == countAtMostOnceAttempts actions
+
+normalizationDiagnosticsAreAccountedFor : List Action -> Bool
+normalizationDiagnosticsAreAccountedFor actions =
+  let result = normalize actions
+   in length (diagnostics (execute actions emptyState)) ==
+      length (audit result) +
+        length (diagnostics (execute (normalized result) emptyState))
+
 ||| The general idempotence theorem specializes to the documented example.
 exampleIdempotenceProof :
   normalized (normalize (normalized (normalize exampleInput))) =
@@ -126,6 +149,18 @@ main = do
   exhaustiveExecution <- assertTrue
                           "execution agrees with interpretation on every bounded sequence"
                           (all executionInterpreterAgreement boundedSequences)
+  exhaustiveWellFormed <- assertTrue
+                            "all bounded executions preserve scheduler coherence"
+                            (all executionStateIsWellFormed boundedSequences)
+  exhaustiveCounters <- assertTrue
+                          "all bounded executions have exact effect counters"
+                          (all executionCountersAreExact boundedSequences)
+  exhaustiveAttempts <- assertTrue
+                          "all bounded attempts are accepted or suppressed"
+                          (all attemptsAreAccountedFor boundedSequences)
+  exhaustiveNormalizationDiagnostics <- assertTrue
+    "every bounded rewrite removes one suppression diagnostic"
+    (all normalizationDiagnosticsAreAccountedFor boundedSequences)
   adjacentExecution <- assertEqual
                          "the runtime suppresses an adjacent duplicate"
                          (MkExecution
@@ -178,6 +213,10 @@ main = do
         , exhaustiveAccounting
         , exhaustiveSemantics
         , exhaustiveExecution
+        , exhaustiveWellFormed
+        , exhaustiveCounters
+        , exhaustiveAttempts
+        , exhaustiveNormalizationDiagnostics
         , adjacentExecution
         , nonAdjacentExecution
         , distinctExecution
@@ -185,5 +224,5 @@ main = do
         , effectCounters
         ]
   if all id outcomes
-    then putStrLn "All 16 test groups passed."
+    then putStrLn "All 20 test groups passed."
     else exitWith (ExitFailure 1)

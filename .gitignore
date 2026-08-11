@@ -1,6 +1,12 @@
 /build/
 *.ibc
 *.ttc
+/formal/lean/.lake/
+/orchestrator/_build/
+/orchestrator/deps/
+/sandbox/zig/.zig-cache/
+/sandbox/zig/zig-out/
+/inference/julia/Manifest.toml
 
 # Agent-local worktrees and state are not project source.
 /.claude/

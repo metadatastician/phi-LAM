@@ -1,0 +1,12 @@
+= Operational protocol contracts
+
+Version 1 defines the messages crossing the Elixir, Zig, and Julia boundaries.
+The JSON Schema is normative for wire shape; `lifecycle.json` is normative for
+state-machine transitions. An opaque external `request_id` is paired with a
+non-negative `core_id`; the future allocator must establish and preserve an
+injective mapping before the Idris scheduler theorem can be transferred to
+external identities.
+
+The shell check verifies JSON syntax and fixture sentinels only. Full JSON
+Schema conformance, schema compatibility, and generated bindings remain
+completion gates; they are not claimed by this scaffold.

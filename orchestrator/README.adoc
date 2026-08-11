@@ -1,0 +1,9 @@
+= Elixir orchestration scaffold
+
+This OTP application implements the first real operational boundary: validated
+request identities, a pure lifecycle, atomic duplicate admission, synchronized
+DETS snapshots, restart recovery, and explicit queue/adapter ports. It does not
+yet claim multi-node linearizability, filesystem durability under abrupt power
+loss, queue integration, or external-provider idempotency.
+
+Run `mix test` and `mix format --check-formatted` from this directory.

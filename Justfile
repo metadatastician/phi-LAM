@@ -9,7 +9,26 @@ test:
     {{idris2}} --source-dir src -o phi-lam-tests src/TestNormalize.idr
     ./build/exec/phi-lam-tests
 
-check: build test
+lean-check:
+    cd formal/lean && lake build
+
+contracts-check:
+    bash scripts/check-contracts.sh
+
+orchestrator-check:
+    cd orchestrator && mix format --check-formatted
+    cd orchestrator && mix compile --warnings-as-errors --no-deps-check
+    cd orchestrator && mix test --no-compile
+
+sandbox-check:
+    cd sandbox/zig && ZIG_GLOBAL_CACHE_DIR=/tmp/phi-lam-zig-global ZIG_LOCAL_CACHE_DIR=/tmp/phi-lam-zig-local zig build test
+
+inference-check:
+    cd inference/julia && JULIA_DEPOT_PATH=/tmp/phi-lam-julia-depot julia --project=. --startup-file=no test/runtests.jl
+
+engineering-check: contracts-check orchestrator-check sandbox-check inference-check
+
+check: build test lean-check engineering-check
 
 clean:
     {{idris2}} --clean phi-lam.ipkg

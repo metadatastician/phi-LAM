@@ -1,0 +1,255 @@
+= Engineering deepening and completion plan
+:date: 2026-08-01
+:toc:
+
+== Outcome
+
+The target is a single-node, recoverable reference service whose observable
+request lifecycle refines the verified scheduler model, whose external effects
+are never blindly repeated after an ambiguous outcome, and whose sandbox and
+inference workers are isolated processes with versioned contracts. Distributed
+exactly-once execution is not a target: the defensible target is atomic durable
+admission, at-least-once delivery, idempotent effects where providers support
+them, and explicit reconciliation where they do not.
+
+== Dependency order
+
+[source]
+----
+protocol freeze
+  -> generated bindings + compatibility suite
+  -> transactional identity/lifecycle store
+     -> queue delivery/ack integration
+        -> external adapter + reconciliation
+           -> end-to-end crash/replay harness
+  -> sandbox launcher + OS containment
+  -> inference model registry + isolated worker
+
+all executable boundaries + failure traces
+  -> refinement model and proof obligations
+  -> release, operations, and adversarial acceptance gates
+----
+
+Work on sandbox containment and inference evaluation may proceed in parallel
+after the protocol freeze. The end-to-end lifecycle cannot be called complete
+until storage, queue, and adapter semantics have converged.
+
+== Phase 0 — freeze and generate protocol v1
+
+Deepen `contracts/v1` into the only source of wire truth. Add full
+Draft 2020-12 validation, maximum payload/array limits, canonical numeric and
+Unicode rules, error envelopes, correlation/causation IDs, content digests,
+and forward-compatible metadata. Decide whether sequence numbers identify
+events or committed snapshots and document rollover behavior.
+
+Generate Elixir, Zig, Julia, Idris, and Lean boundary types where practical;
+otherwise generate fixtures and parsers from the same schema. Add positive,
+negative, boundary, and mutation fixtures. Every implementation must consume
+the same corpus and reject unknown versions fail-closed.
+
+Evidence gate P0:
+
+* schema-valid examples accepted and schema-invalid examples rejected in every
+  runtime;
+* canonical round-trip and unknown-field/version behavior tested;
+* compatibility check prevents breaking v1 changes in CI;
+* an ADR fixes size limits and evolution rules; and
+* external `request_id` to `core_id` allocation semantics are specified as an
+  injective, persistent mapping.
+
+== Phase 1 — transactional lifecycle ownership
+
+Replace or wrap the DETS prototype with a storage port having one transactional
+operation for identity allocation and admission, plus compare-and-set lifecycle
+transitions. A relational reference implementation should use unique
+constraints on both IDs, monotonically increasing sequence numbers, immutable
+events, and a materialized current snapshot. Include migration/version fields,
+checksums where useful, and a quarantine path for unreadable records.
+
+Define crash points before and after every write and sync. Recovery must derive
+the same current state from the event log, reject illegal or out-of-order
+events, and surface corruption rather than manufacture a default. If more than
+one worker can own a request, introduce leases with fencing tokens; wall-clock
+expiry alone is insufficient ownership evidence.
+
+Evidence gate P1:
+
+* property tests compare event replay with snapshot state;
+* hundreds of concurrent admissions produce one accepted identity mapping;
+* kill/restart tests cover each commit boundary;
+* migration upgrade/downgrade policy and backup restoration are exercised;
+* storage corruption is detected and quarantined; and
+* database isolation and durability assumptions are recorded from the actual
+  configured engine, not inferred from the API.
+
+== Phase 2 — queue delivery and acknowledgement
+
+Implement the queue behaviour against one selected broker. Persist delivery ID,
+attempt count, and fencing token. Acknowledge only after the corresponding
+lifecycle state is durably committed. Classify failures into retryable
+pre-effect failure, terminal validation failure, dead-letter, and
+post-effect ambiguity. Backoff must be bounded and observable; poison messages
+must not consume the queue indefinitely.
+
+Evidence gate P2:
+
+* broker redelivery before and after process death is reproduced;
+* duplicate and reordered deliveries converge on one legal snapshot;
+* acknowledgement-before-commit is impossible in the adapter implementation
+  and is caught by a deliberately inverted test double;
+* dead-letter replay is an authenticated, audited operation; and
+* load tests establish queue depth, latency, and retry-budget thresholds.
+
+== Phase 3 — external LLM/effect adapter
+
+Select a provider capability profile: idempotency-key support, receipt lookup,
+timeouts, cancellation semantics, retention, and key-expiry window. Persist the
+attempt before invoking the provider and persist its receipt before declaring
+completion. Normalize provider errors into the three current dispositions;
+expand the protocol only when an observed provider case cannot be represented.
+
+If a connection fails after submission, enter `ambiguous_after_effect`. A
+reconciler may query by stable key or receipt and then append a resolution
+event; ordinary queue redelivery must not call the provider again. Credentials
+must remain outside payloads and audit events.
+
+Evidence gate P3:
+
+* provider contract tests use recorded/synthetic responses without secrets;
+* timeout at every request/response boundary yields the specified state;
+* repeated idempotency keys are tested against the real provider's documented
+  behavior and expiry window;
+* reconciliation is resumable, rate-limited, and audited; and
+* cost, token, content-size, and data-retention policies fail closed.
+
+== Phase 4 — enforce the sandbox decision
+
+Keep the Zig policy evaluator small, but put execution in a separate disposable
+process. The launcher must translate an allowlist into OS enforcement: separate
+UID, empty/minimal filesystem view, no inherited descriptors, explicit network
+namespace policy, syscall restrictions, CPU/wall/memory/process/output limits,
+and termination of the complete process tree. Treat parser disagreement and an
+unavailable enforcement mechanism as denial.
+
+Do not use an in-process BEAM NIF for untrusted execution; a Zig memory fault
+would compromise the VM. If Wasm is selected, pin and harden the runtime and
+still keep it out of process.
+
+Evidence gate P4:
+
+* each capability is denied by default and granted independently;
+* traversal, symlink, descriptor inheritance, DNS/network, fork-bomb, memory,
+  timeout, and oversized-output cases are adversarially tested;
+* the host remains unaffected after worker crash or forced termination;
+* enforcement is tested on the actual deployment kernel; and
+* a security review maps every threat-model row to a control and test.
+
+== Phase 5 — real inference boundary
+
+Define the task, dataset provenance, permitted features, output semantics, and
+quality/safety metrics before replacing `fixture-mean-v1`. Add a model registry
+with immutable digest, code/environment version, schema version, training-data
+lineage, and activation/rollback state. Run Julia out of process with the same
+resource and protocol discipline as other workers.
+
+Separate deterministic serving reproducibility from statistical performance:
+both require evidence. Quantify calibration, slices, uncertainty, drift,
+abstention behavior, and malformed/adversarial inputs. Never let a model score
+implicitly authorize a capability or external effect.
+
+Evidence gate P5:
+
+* golden vectors reproduce within a declared numerical tolerance;
+* model digest and protocol version appear in every result;
+* offline evaluation meets predeclared metrics and slice guardrails;
+* resource, privacy, poisoning, and extreme-input tests pass; and
+* rollback to the preceding model is rehearsed.
+
+== Phase 6 — system integration and fault injection
+
+Build a harness that drives the same request through Elixir, persisted state,
+broker delivery, adapter doubles, Zig policy, and Julia worker. Record a
+machine-readable trace and compare its projection with the lifecycle contract.
+Inject process death, storage unavailability, duplicate/reordered messages,
+partial provider responses, sandbox crashes, and inference timeouts at named
+boundaries.
+
+Evidence gate P6:
+
+* every injected run ends in a legal durable state or an explicit quarantine;
+* no ambiguous external attempt is automatically reinvoked;
+* completed requests are not re-executed after full service restart;
+* trace IDs connect delivery, lifecycle, policy, inference, and adapter records
+  without placing secrets in logs; and
+* CI runs deterministic contract/integration cases while scheduled testing
+  runs the slower crash and adversarial matrix.
+
+== Phase 7 — connect engineering evidence to proofs
+
+Model the lifecycle transition system and its event projection in Lean 4. Prove
+transition legality, terminal-state restrictions, monotonic sequence numbers,
+and replay determinism. Define a refinement mapping from operational snapshots
+to the existing pure reference scheduler. The key theorem should be conditional:
+given atomic injective admission and a lawful adapter idempotency/reconciliation
+contract, accepted at-most-once requests project to at most one committed
+effect.
+
+Model queue redelivery as stuttering/repeated delivery rather than pretending
+it is exactly once. Model `ambiguous_after_effect` as epistemic uncertainty: it
+must prevent a second invocation but cannot prove whether the first provider
+effect happened. Generate or validate executable lifecycle transition tables
+against the formal definition so the proof and Elixir implementation cannot
+silently drift.
+
+Evidence gate P7:
+
+* no `sorry`/axiom escape in the lifecycle development;
+* executable transition vectors are shared between Lean and Elixir;
+* replay determinism and illegal-transition rejection are proved;
+* the external/core identity mapping invariant is proved at the model level
+  and enforced by the database constraints; and
+* assumptions about storage and provider behavior are enumerated beside the
+  theorem, then linked to P1/P3 tests and documentation.
+
+Isabelle is not required for this phase. Lean 4 remains the best fit because
+the repository already has checked Lean infrastructure and a compatible
+transition-system development. Isabelle would be justified only for an
+independent refinement/security formalization with dedicated expertise, not as
+a substitute for missing operational evidence.
+
+== Phase 8 — operations and release acceptance
+
+Package pinned, reproducible artifacts with SBOMs, provenance, vulnerability
+scanning, signed release metadata, schema/database migrations, and rollback.
+Define service-level indicators for admission latency, stuck states, ambiguity,
+retries, dead letters, sandbox denial/crash, inference latency, and
+reconciliation age. Provide runbooks for every terminal/quarantine state,
+credential rotation, backup restore, broker outage, and model rollback.
+
+Completion gate P8:
+
+* fresh install, upgrade, rollback, and disaster recovery pass in a production-
+  equivalent environment;
+* alerts are exercised and lead to tested runbooks;
+* threat-model and dependency review have named owners;
+* a canary proves bounded blast radius and rollback; and
+* `docs/status/STATE.adoc` promotes only evidence-backed claims. “Production
+  ready” remains false until every required gate has durable evidence.
+
+== Immediate backlog
+
+. Add a real JSON Schema validator and cross-runtime fixture runners (P0).
+. Specify the identity allocator and event-store transaction, then choose the
+  reference database (P0/P1).
+. Property-test the lifecycle and DETS prototype while implementing the
+  database store behind the same behaviour (P1).
+. Select one broker and one provider from documented capability requirements,
+  not convenience alone (P2/P3).
+. Prototype an out-of-process Zig launcher on the target Linux kernel and turn
+  the threat-model cases into executable tests (P4).
+. Write the inference task/data/metric specification before introducing any
+  learned model (P5).
+. Define the trace format and fault-injection seam shared by P1–P6.
+. Start the Lean lifecycle model after P0 is frozen; prove the model while the
+  integration traces are being accumulated, then discharge assumptions with
+  the engineering evidence at P7.

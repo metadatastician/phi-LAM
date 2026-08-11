@@ -4,14 +4,22 @@
 phi-LAM is a pre-alpha research seed for describing and normalising small,
 typed action sequences.
 
-The repository currently contains a deliberately narrow Idris 2 semantic
-kernel and pure reference scheduler. The normalizer removes adjacent scheduler
+The repository contains a deliberately narrow Idris 2 semantic kernel and pure
+reference scheduler, plus executable engineering scaffolds around its current
+operational boundary. The normalizer removes adjacent scheduler
 entries only when they carry the same request identity and the `AtMostOnce`
 policy, returning both the normal form and a type-aligned derivation. The
 reference scheduler gives that policy executable meaning: the first request
 changes effective state and later attempts with the same identity are
-suppressed. This is not yet an agent architecture, an external scheduler
-adapter, a sandbox, an inference engine, or a Kautz-graph implementation.
+suppressed.
+
+The engineering scaffold adds a versioned JSON protocol, an Elixir lifecycle
+and atomic/recoverable local store, queue and external-adapter ports, a Zig
+deny-by-default capability evaluator, and a Julia deterministic inference
+fixture. These are tested seams, not a production service: no broker or real
+provider is integrated, the Zig policy does not yet impose OS containment, and
+the Julia fixture is not a trained model. Kautz-graph and “Type 6” claims remain
+quarantined.
 
 == Evidence-backed example
 
@@ -49,7 +57,9 @@ The Idris types and total proofs establish that:
 * requests with different identities, `Repeatable` requests, and mixed
   policies are retained;
 * the result contains no pair carrying redundancy evidence;
-* normalization cannot invent or reorder retained actions; and
+* normalization cannot invent or reorder retained actions;
+* every rewrite removes exactly one action and the audit length exactly
+  accounts for all removals;
 * normalization is idempotent; and
 * normalization preserves interpretation for every scheduler model that proves
   its at-most-once operation idempotent.
@@ -59,7 +69,36 @@ pure state transition. Its checked theorem proves that scheduling the same
 `AtMostOnce` identity twice has exactly the effective state of scheduling it
 once. `execute` reports suppressed duplicate attempts as diagnostics kept
 separate from effective semantics; normalization is not claimed to preserve
-those diagnostic lists.
+those diagnostic lists. Reachable scheduler states have unique seen identities,
+and those identities correspond exactly to accepted at-most-once entries in
+the effective schedule. Every action and instrumented execution preserves that
+coherence invariant. Every at-most-once attempt is constructively classified
+as accepted or suppressed, with its transition and diagnostic proved together.
+Reference interpretation also proves exact effect accounting: memory and
+sandbox counters equal their initial values plus the corresponding action
+counts, while every at-most-once attempt is conserved as either a newly seen
+identity or a suppression diagnostic.
+
+Diagnostics are intentionally not invariant under normalization, but their
+change is now exact: each recorded rewrite removes exactly one suppression
+diagnostic from reference execution. Thus the raw diagnostic count equals the
+normalization audit length plus the normalized execution's diagnostic count.
+
+An independent Lean 4 formalization in `formal/lean/` reconstructs the action
+calculus rather than importing generated Idris output. It proves that the Lean
+normalizer produces a normal form, normal forms are fixed points,
+normalization is idempotent, every rewrite strictly decreases length, no
+infinite rewrite chain exists, the current rewrite system is confluent, every
+reachable normal form is the unique result returned by `normalize`, and every
+derivation preserves every lawful scheduler model. Shared examples check
+agreement on the documented rule boundary. This is independent theorem-prover
+corroboration, not a formal compiler-to-compiler equivalence theorem.
+
+The Lean development also defines a minimal streaming normalizer with one
+pending action of look-behind. Processing concatenated chunks equals processing
+the first chunk and resuming with its state, and finishing a streaming run is
+proved equal to batch `normalize`. This includes redundant pairs split across a
+chunk boundary; it is a pure normalization result, not a persistence protocol.
 
 The audit trace is an erased runtime view of the typed derivation. Positions
 refer to the sequence as it exists when each rewrite is applied, not to stale
@@ -74,9 +113,15 @@ The currently checked toolchain is Idris 2 0.7.0.
 idris2 --build phi-lam.ipkg
 idris2 --source-dir src -o phi-lam-tests src/TestNormalize.idr
 ./build/exec/phi-lam-tests
+cd formal/lean && lake build
+cd orchestrator && mix test
+cd sandbox/zig && zig build test
+cd inference/julia && julia --project=. --startup-file=no test/runtests.jl
 ----
 
-If `just` is installed, `just check` performs all three steps.
+If `just` is installed, `just check` performs the proof-kernel and engineering
+checks. `just engineering-check` runs only the protocol, Elixir, Zig, and Julia
+surfaces.
 
 == Repository status
 
@@ -87,7 +132,19 @@ records the move from untyped trace records to indexed evidence. The earlier
 link:docs/decisions/0004-evidenced-redundancy.adoc[ADR 0004] defines request
 identity, replay policy, and model-parametric scheduler semantics.
 link:docs/decisions/0005-reference-scheduler.adoc[ADR 0005] records the pure
-reference scheduler and the boundary of its guarantees. The earlier
+reference scheduler and the boundary of its guarantees.
+link:docs/decisions/0006-independent-lean-metatheory.adoc[ADR 0006] defines the
+role and limits of the independent Lean formalization.
+link:docs/decisions/0007-proof-frontier.adoc[ADR 0007] records the strengthened
+rewrite and scheduler invariants and identifies the operational proof boundary.
+link:docs/decisions/0008-proof-corollaries.adoc[ADR 0008] records exact effect
+accounting and streaming/batch equivalence.
+link:docs/decisions/0009-operational-boundaries.adoc[ADR 0009] defines the new
+engineering seams and their claim limits. The dependency-ordered
+link:docs/engineering/COMPLETION-PLAN.adoc[completion plan] and
+link:docs/security/THREAT-MODEL.adoc[threat model] specify what is required to
+deepen them.
+The earlier
 generated scaffold is preserved in Git by the annotated tag
 `forensic/gemini-scaffold-2026-08-01`; it is not a supported release.
 

@@ -1,0 +1,53 @@
+= ADR 0007: Establish the pre-runtime proof frontier
+:status: accepted
+:date: 2026-08-01
+
+== Context
+
+The semantic seed had proved idempotence and model-parametric preservation, and
+the pure reference scheduler had discharged the required at-most-once law. Two
+questions remained before operational engineering: whether the rewrite system
+had a complete strategy-independent metatheory, and whether scheduler states
+carried enough structure to exclude incoherent histories.
+
+== Decision
+
+Strengthen the independent Lean development to prove:
+
+* logical and executable normality are equivalent;
+* every primitive rewrite strictly decreases sequence length;
+* no infinite rewrite chain exists;
+* derivation length exactly accounts for removed actions;
+* every rewrite and derivation leaves `normalize` invariant;
+* all derivations from one input are joinable at its normalized result;
+* every reachable normal form equals that result; and
+* reachable normal forms are unique.
+
+Promote trace/removal accounting from an Idris bounded test to the general
+theorems `rewriteRemovesOne`, `derivationLengthAccounting`, and
+`normalizationLengthAccounting`.
+
+Define reference-scheduler coherence with two requirements: the seen set has no
+duplicate identity, and reversing its newest-first representation produces
+exactly the at-most-once identities in effective acceptance order. Prove the
+empty state coherent and prove every scheduling transition, action,
+interpretation, and instrumented execution preserves coherence.
+
+Finally, classify each at-most-once attempt with dependent evidence. An
+accepted attempt carries proof that the identity was unseen, the exact accepted
+state transition, and an empty diagnostic. A suppressed attempt carries proof
+that the identity was seen, effective state is unchanged, and exactly one
+suppression diagnostic is emitted.
+
+== Consequences
+
+For the current single rewrite rule and pure scheduler, the remaining central
+properties are no longer bounded-test claims. The executable suite retains the
+781-sequence corpus as regression and cross-language correspondence evidence.
+
+Further useful proofs now require a new specification or implementation
+subject. Crash recovery needs a durable acceptance/commit protocol; concurrency
+needs an atomicity and linearization boundary; external effects need an adapter
+contract; sandbox isolation needs a threat model and Zig implementation; and
+full Idris–Lean equivalence needs a verified translation or shared extracted
+core. None of those properties is implied by the pure reference model.
